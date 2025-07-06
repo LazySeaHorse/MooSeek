@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       tag_name:
-        description: 'Test tag'
+        description: 'Release tag (e.g. v1.2.0)'
         required: true
         default: 'v0.0.3'
 
