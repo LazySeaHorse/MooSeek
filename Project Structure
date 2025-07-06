@@ -1,0 +1,22 @@
+Mooseek/
+├── app/
+│   ├── build.gradle.kts
+│   ├── src/main/
+│   │   ├── AndroidManifest.xml
+│   │   ├── java/com/mooseek/
+│   │   │   ├── MainActivity.kt
+│   │   │   ├── MediaServerService.kt
+│   │   │   ├── MediaRepository.kt
+│   │   │   └── models/Song.kt
+│   │   ├── assets/
+│   │   │   ├── index.html
+│   │   │   ├── app.js
+│   │   │   └── styles.css
+│   │   └── res/
+│   │       ├── layout/activity_main.xml
+│   │       └── values/strings.xml
+├── build.gradle.kts
+├── settings.gradle.kts
+├── gradle.properties
+├── .github/workflows/android.yml
+└── README.md

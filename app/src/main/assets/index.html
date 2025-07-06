@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mooseek</title>
+    <link rel="stylesheet" href="https://cdn.plyr.io/3.7.8/plyr.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/clusterize.js/0.18.0/clusterize.min.css">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div id="app">
+        <header>
+            <h1>Mooseek</h1>
+            <div class="controls">
+                <input type="text" id="search" placeholder="Search songs...">
+                <select id="sort">
+                    <option value="title">A-Z</option>
+                    <option value="dateAdded">Date Added</option>
+                    <option value="dateModified">Date Modified</option>
+                </select>
+                <button id="settings-btn">Settings</button>
+            </div>
+        </header>
+        
+        <main>
+            <div class="track-list">
+                <div id="scrollArea" class="clusterize-scroll">
+                    <div id="contentArea" class="clusterize-content">
+                        <div class="clusterize-no-data">Loading...</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="player-section">
+                <audio id="player" controls></audio>
+                <div id="lyrics-container" class="lyrics-container"></div>
+            </div>
+        </main>
+        
+        <div id="settings-modal" class="modal">
+            <div class="modal-content">
+                <h2>Settings</h2>
+                <label for="apiKey">MusixMatch API Key:</label>
+                <input type="text" id="apiKey" placeholder="Enter your API key">
+                <button id="save-settings">Save</button>
+                <button id="close-settings">Close</button>
+            </div>
+        </div>
+    </div>
+    
+    <script src="https://cdn.plyr.io/3.7.8/plyr.polyfilled.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/clusterize.js/0.18.0/clusterize.min.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
