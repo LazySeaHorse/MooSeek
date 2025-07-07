@@ -85,8 +85,11 @@ main {
 }
 
 .clusterize-scroll {
-    height: 600px;
+    height: 600px;         /* initial height */
+    min-height: 200px;     /* minimum height */
+    max-height: 90vh;      /* maximum height, optional */
     overflow: auto;
+    resize: vertical;      /* allow user to resize vertically */
 }
 
 .track-item {
