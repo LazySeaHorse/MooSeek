@@ -120,15 +120,20 @@ class MainActivity : AppCompatActivity() {
     }
     
     private fun getIpAddress(): String {
-        val wifiManager = applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
-        val ipAddress = wifiManager.connectionInfo.ipAddress
-        return String.format(
-            "%d.%d.%d.%d",
-            ipAddress and 0xff,
-            ipAddress shr 8 and 0xff,
-            ipAddress shr 16 and 0xff,
-            ipAddress shr 24 and 0xff
-        )
+        try {
+            val interfaces = java.net.NetworkInterface.getNetworkInterfaces()
+            for (intf in interfaces) {
+                val addrs = intf.inetAddresses
+                for (addr in addrs) {
+                    if (!addr.isLoopbackAddress && addr is java.net.Inet4Address && !addr.isLinkLocalAddress) {
+                        return addr.hostAddress ?: "0.0.0.0"
+                    }
+                }
+            }
+        } catch (ex: Exception) {
+            // Ignore
+        }
+        return "0.0.0.0"
     }
     
     private fun appendLog(message: String) {
