@@ -48,16 +48,22 @@ document.addEventListener('DOMContentLoaded', async () => {
     player.on('play', () => {
         if (currentSong) {
             loadLyrics(currentSong);
+            sendPlaybackCommand({ isPlaying: true, songId: currentSong && currentSong.id, position: player.currentTime });
         }
     });
     
     player.on('pause', () => {
         clearInterval(lyricsInterval);
+        sendPlaybackCommand({ isPlaying: false, songId: currentSong && currentSong.id, position: player.currentTime });
     });
     
     player.on('ended', () => {
         clearInterval(lyricsInterval);
         playNext();
+    });
+    
+    player.on('seeked', () => {
+        sendPlaybackCommand({ position: player.currentTime, songId: currentSong && currentSong.id });
     });
 });
 
@@ -67,6 +73,7 @@ async function loadSongs() {
         songs = await response.json();
         filteredSongs = [...songs];
         updateTrackList();
+        sendSongListToServer();
     } catch (error) {
         console.error('Failed to load songs:', error);
     }
@@ -114,6 +121,16 @@ function playNext() {
     if (currentIndex < filteredSongs.length - 1) {
         playSong(filteredSongs[currentIndex + 1]);
         updateActiveTrack(currentIndex + 1);
+    }
+}
+
+function playPrev() {
+    if (!currentSong) return;
+    
+    const currentIndex = filteredSongs.findIndex(s => s.id === currentSong.id);
+    if (currentIndex > 0) {
+        playSong(filteredSongs[currentIndex - 1]);
+        updateActiveTrack(currentIndex - 1);
     }
 }
 
@@ -277,3 +294,104 @@ function getMimeType(path) {
     };
     return mimeTypes[ext] || 'audio/*';
 }
+
+// --- WebSocket Playback Sync ---
+(function() {
+  const ws = new WebSocket('ws://localhost:8080');
+  window.ws = ws;
+  let playbackState = {
+    songId: null,
+    position: 0,
+    isPlaying: false
+  };
+  let ignoreLocal = false;
+
+  ws.onopen = function() {
+    ws.send(JSON.stringify({ type: 'get_state' }));
+  };
+
+  ws.onmessage = function(event) {
+    const data = JSON.parse(event.data);
+    if (data.type === 'state') {
+      // Update local state/UI if needed
+      if (data.songId !== playbackState.songId || data.isPlaying !== playbackState.isPlaying || Math.abs(data.position - playbackState.position) > 2) {
+        ignoreLocal = true;
+        // Implement your own updatePlayerFromState function to update the UI/player
+        if (typeof updatePlayerFromState === 'function') {
+          updatePlayerFromState(data);
+        }
+        setTimeout(() => { ignoreLocal = false; }, 500);
+      }
+      playbackState = data;
+    }
+  };
+
+  // Call this function when user interacts with the player (play, pause, seek, etc.)
+  window.sendPlaybackCommand = function(command) {
+    if (ignoreLocal) return;
+    // Attach current songId and position for next/prev
+    if (command.next || command.prev) {
+      command.songId = currentSong && currentSong.id;
+      command.position = player.currentTime;
+    }
+    ws.send(JSON.stringify({
+      type: 'command',
+      source: 'web',
+      command
+    }));
+  };
+
+  // Example: Hook into your player controls
+  // document.getElementById('playBtn').onclick = function() {
+  //   sendPlaybackCommand({ isPlaying: true });
+  // };
+  // document.getElementById('pauseBtn').onclick = function() {
+  //   sendPlaybackCommand({ isPlaying: false });
+  // };
+  // document.getElementById('seekBar').oninput = function(e) {
+  //   sendPlaybackCommand({ position: e.target.value });
+  // };
+
+  // You must implement updatePlayerFromState(state) elsewhere in your code
+})();
+
+// Add this function to handle playback state updates from the server
+function updatePlayerFromState(state) {
+  // Change song if needed
+  if (state.songId && state.songId !== currentSong.id) {
+    const idx = filteredSongs.findIndex(s => s.id === state.songId);
+    if (idx !== -1) {
+      playSong(filteredSongs[idx]);
+    }
+  }
+  // Play/pause
+  if (state.isPlaying !== undefined) {
+    if (state.isPlaying && player.paused) {
+      player.play();
+    } else if (!state.isPlaying && !player.paused) {
+      player.pause();
+    }
+  }
+  // Seek
+  if (typeof state.position === 'number' && Math.abs(player.currentTime - state.position) > 2) {
+    player.currentTime = state.position;
+  }
+  // Next/Prev
+  if (state.next) {
+    playNext();
+  }
+  if (state.prev) {
+    playPrev();
+  }
+}
+
+// After loading the song list, send it to the WebSocket server for next/prev support
+function sendSongListToServer() {
+  if (window.ws && filteredSongs && filteredSongs.length > 0) {
+    window.ws.send(JSON.stringify({ type: 'song_list', songs: filteredSongs.map(s => ({ id: s.id, title: s.title })) }));
+  }
+}
+
+// Call this after the song list is loaded or filtered
+// Example: after filtering or initial load
+// sendSongListToServer();
