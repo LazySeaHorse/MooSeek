@@ -14,7 +14,7 @@ I have a huge collection of music on my phone, and I wanted to play it on differ
 - **No sync or upload**: Your music stays on your phone
 - **Works on anything with a browser**: TV, laptop, tablet, etc.
 
-[](https://i.postimg.cc/tJm7rhhw/retgftdfs.png)
+[![retgftdfs.png](https://i.postimg.cc/tJm7rhhw/retgftdfs.png)](https://postimg.cc/64n9q4bf)
 
 ## How it works
 - The Android app runs a tiny web server on your phone (port 8080)
