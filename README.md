@@ -2,6 +2,9 @@
 
 **MooSeek** is a tiny (5MB) app that lets you stream your entire music collection from your Android phone to any device on your local network — no cloud, no syncing, no bloat. If it has a browser (even your TV!), it works.
 
+> [!NOTE]
+> Coded to life with some help from Claude 4 Opus
+
 ## Why?
 I have a huge collection of music on my phone, and I wanted to play it on different devices around my home without syncing or uploading everything. Existing solutions were bloated, clunky, or required too much setup. MooSeek is lightweight, fast, and just works — open your browser and hit play.
 
@@ -11,7 +14,7 @@ I have a huge collection of music on my phone, and I wanted to play it on differ
 - **No sync or upload**: Your music stays on your phone
 - **Works on anything with a browser**: TV, laptop, tablet, etc.
 
-[retgftdfs.png](https://postimg.cc/64n9q4bf)
+[](https://i.postimg.cc/tJm7rhhw/retgftdfs.png)
 
 ## How it works
 - The Android app runs a tiny web server on your phone (port 8080)
