@@ -5,6 +5,8 @@ let player = null;
 let clusterize = null;
 let lyrics = [];
 let lyricsInterval = null;
+let shuffleEnabled = false;
+let repeatMode = 'off'; // 'off', 'all', 'one'
 
 document.addEventListener('DOMContentLoaded', async () => {
     // Initialize player
@@ -43,6 +45,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('settings-btn').addEventListener('click', openSettings);
     document.getElementById('save-settings').addEventListener('click', saveSettings);
     document.getElementById('close-settings').addEventListener('click', closeSettings);
+    document.getElementById('shuffle-btn').addEventListener('click', toggleShuffle);
+    document.getElementById('repeat-btn').addEventListener('click', toggleRepeat);
     
     // Player events
     player.on('play', () => {
@@ -57,7 +61,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     
     player.on('ended', () => {
         clearInterval(lyricsInterval);
-        playNext();
+        if (repeatMode === 'one' && currentSong) {
+            playSong(currentSong);
+        } else {
+            playNext();
+        }
     });
 });
 
@@ -108,13 +116,45 @@ function playSong(song) {
 }
 
 function playNext() {
-    if (!currentSong) return;
+    if (!currentSong || filteredSongs.length === 0) return;
+    
+    if (shuffleEnabled) {
+        const randomIndex = Math.floor(Math.random() * filteredSongs.length);
+        playSong(filteredSongs[randomIndex]);
+        updateActiveTrack(randomIndex);
+        return;
+    }
     
     const currentIndex = filteredSongs.findIndex(s => s.id === currentSong.id);
     if (currentIndex < filteredSongs.length - 1) {
         playSong(filteredSongs[currentIndex + 1]);
         updateActiveTrack(currentIndex + 1);
+    } else if (repeatMode === 'all') {
+        playSong(filteredSongs[0]);
+        updateActiveTrack(0);
     }
+}
+
+function toggleShuffle() {
+    shuffleEnabled = !shuffleEnabled;
+    const btn = document.getElementById('shuffle-btn');
+    btn.classList.toggle('active', shuffleEnabled);
+    btn.title = shuffleEnabled ? 'Shuffle: On' : 'Shuffle: Off';
+}
+
+function toggleRepeat() {
+    const btn = document.getElementById('repeat-btn');
+    const modes = ['off', 'all', 'one'];
+    const labels = { off: 'Repeat: Off', all: 'Repeat: All', one: 'Repeat: One' };
+    const icons = { off: '🔁', all: '🔁', one: '🔂' };
+    
+    const currentIndex = modes.indexOf(repeatMode);
+    repeatMode = modes[(currentIndex + 1) % modes.length];
+    
+    btn.dataset.mode = repeatMode;
+    btn.title = labels[repeatMode];
+    btn.textContent = icons[repeatMode];
+    btn.classList.toggle('active', repeatMode !== 'off');
 }
 
 function updateActiveTrack(index) {
