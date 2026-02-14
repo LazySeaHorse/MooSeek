@@ -122,15 +122,51 @@ class MediaServerService : Service() {
             
             sendLog("$method $uri")
             
-            return when {
+            val response = when {
                 uri == "/" -> serveAsset("index.html", "text/html")
-                uri.endsWith(".js") -> serveAsset(uri.substring(1), "application/javascript")
-                uri.endsWith(".css") -> serveAsset(uri.substring(1), "text/css")
                 uri == "/list" -> handleList()
                 uri.startsWith("/stream/") -> handleStream(uri.substring(8), session)
                 uri == "/lyrics" -> handleLyrics(session)
-                else -> newFixedLengthResponse(Response.Status.NOT_FOUND, "text/plain", "Not Found")
+                else -> {
+                    // Serve static assets (js, css, svg, etc.) from the assets folder
+                    val filename = uri.trimStart('/')
+                    val mimeType = getMimeTypeForAsset(filename)
+                    if (mimeType != null) {
+                        serveAsset(filename, mimeType)
+                    } else {
+                        newFixedLengthResponse(Response.Status.NOT_FOUND, "text/plain", "Not Found")
+                    }
+                }
             }
+            
+            return addCorsHeaders(response)
+        }
+        
+        private fun getMimeTypeForAsset(filename: String): String? {
+            val ext = filename.substringAfterLast('.', "").lowercase()
+            return when (ext) {
+                "html" -> "text/html"
+                "css" -> "text/css"
+                "js" -> "application/javascript"
+                "svg" -> "image/svg+xml"
+                "json" -> "application/json"
+                "png" -> "image/png"
+                "jpg", "jpeg" -> "image/jpeg"
+                "gif" -> "image/gif"
+                "webp" -> "image/webp"
+                "woff" -> "font/woff"
+                "woff2" -> "font/woff2"
+                "ttf" -> "font/ttf"
+                else -> null
+            }
+        }
+        
+        private fun addCorsHeaders(response: Response): Response {
+            response.addHeader("Access-Control-Allow-Origin", "*")
+            response.addHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+            response.addHeader("Access-Control-Allow-Headers", "Content-Type, Range")
+            response.addHeader("Access-Control-Expose-Headers", "Content-Range, Accept-Ranges")
+            return response
         }
         
         private fun serveAsset(filename: String, mimeType: String): Response {

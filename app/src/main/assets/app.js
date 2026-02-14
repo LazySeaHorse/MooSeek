@@ -11,18 +11,21 @@ let repeatMode = 'off'; // 'off', 'all', 'one'
 document.addEventListener('DOMContentLoaded', async () => {
     // Initialize player
     player = new Plyr('#player', {
-        controls: ['play-large', 'play', 'progress', 'current-time', 'duration', 'mute', 'volume']
+        controls: ['play-large', 'play', 'progress', 'current-time', 'duration', 'mute', 'volume'],
+        iconUrl: 'plyr.svg',
+        blankVideo: '',
+        loadSprite: true
     });
-    
+
     // Load saved API key
     const savedApiKey = localStorage.getItem('musixmatchApiKey');
     if (savedApiKey) {
         document.getElementById('apiKey').value = savedApiKey;
     }
-    
+
     // Load songs
     await loadSongs();
-    
+
     // Initialize clusterize
     clusterize = new Clusterize({
         rows: generateRows(filteredSongs),
@@ -33,12 +36,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         show_no_data_row: true,
         no_data_text: 'No songs found',
         callbacks: {
-            clusterChanged: function() {
+            clusterChanged: function () {
                 attachTrackClickHandlers();
             }
         }
     });
-    
+
     // Event listeners
     document.getElementById('search').addEventListener('input', handleSearch);
     document.getElementById('sort').addEventListener('change', handleSort);
@@ -47,18 +50,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('close-settings').addEventListener('click', closeSettings);
     document.getElementById('shuffle-btn').addEventListener('click', toggleShuffle);
     document.getElementById('repeat-btn').addEventListener('click', toggleRepeat);
-    
+
     // Player events
     player.on('play', () => {
         if (currentSong) {
             loadLyrics(currentSong);
         }
     });
-    
+
     player.on('pause', () => {
         clearInterval(lyricsInterval);
     });
-    
+
     player.on('ended', () => {
         clearInterval(lyricsInterval);
         if (repeatMode === 'one' && currentSong) {
@@ -92,10 +95,10 @@ function generateRows(songList) {
 
 function attachTrackClickHandlers() {
     document.querySelectorAll('.track-item').forEach(item => {
-        item.addEventListener('click', function() {
+        item.addEventListener('click', function () {
             const index = parseInt(this.dataset.index);
             playSong(filteredSongs[index]);
-            
+
             // Update active state
             document.querySelectorAll('.track-item').forEach(el => el.classList.remove('active'));
             this.classList.add('active');
@@ -117,14 +120,14 @@ function playSong(song) {
 
 function playNext() {
     if (!currentSong || filteredSongs.length === 0) return;
-    
+
     if (shuffleEnabled) {
         const randomIndex = Math.floor(Math.random() * filteredSongs.length);
         playSong(filteredSongs[randomIndex]);
         updateActiveTrack(randomIndex);
         return;
     }
-    
+
     const currentIndex = filteredSongs.findIndex(s => s.id === currentSong.id);
     if (currentIndex < filteredSongs.length - 1) {
         playSong(filteredSongs[currentIndex + 1]);
@@ -147,10 +150,10 @@ function toggleRepeat() {
     const modes = ['off', 'all', 'one'];
     const labels = { off: 'Repeat: Off', all: 'Repeat: All', one: 'Repeat: One' };
     const icons = { off: '🔁', all: '🔁', one: '🔂' };
-    
+
     const currentIndex = modes.indexOf(repeatMode);
     repeatMode = modes[(currentIndex + 1) % modes.length];
-    
+
     btn.dataset.mode = repeatMode;
     btn.title = labels[repeatMode];
     btn.textContent = icons[repeatMode];
@@ -169,17 +172,17 @@ function updateActiveTrack(index) {
 async function loadLyrics(song) {
     clearInterval(lyricsInterval);
     document.getElementById('lyrics-container').innerHTML = 'Loading lyrics...';
-    
+
     const apiKey = localStorage.getItem('musixmatchApiKey');
     if (!apiKey) {
         document.getElementById('lyrics-container').innerHTML = 'Please set MusixMatch API key in settings';
         return;
     }
-    
+
     try {
         const response = await fetch(`/lyrics?artist=${encodeURIComponent(song.artist)}&title=${encodeURIComponent(song.title)}&apiKey=${apiKey}`);
         const data = await response.json();
-        
+
         if (data.message && data.message.body && data.message.body.subtitle) {
             lyrics = parseLyrics(data.message.body.subtitle.subtitle_body);
             displayLyrics();
@@ -196,7 +199,7 @@ async function loadLyrics(song) {
 function parseLyrics(lyricsText) {
     const lines = lyricsText.split('\n');
     const parsed = [];
-    
+
     for (const line of lines) {
         const match = line.match(/\[(\d{2}):(\d{2}\.\d{2})\](.*)/);
         if (match) {
@@ -207,13 +210,13 @@ function parseLyrics(lyricsText) {
             parsed.push({ time, text });
         }
     }
-    
+
     return parsed;
 }
 
 function displayLyrics() {
     const container = document.getElementById('lyrics-container');
-    container.innerHTML = lyrics.map((line, index) => 
+    container.innerHTML = lyrics.map((line, index) =>
         `<div class="lyrics-line" data-index="${index}">${line.text || '♪'}</div>`
     ).join('');
 }
@@ -222,9 +225,9 @@ function startLyricsSync() {
     lyricsInterval = setInterval(() => {
         const currentTime = player.currentTime;
         const activeLine = findActiveLyricLine(currentTime);
-        
+
         document.querySelectorAll('.lyrics-line').forEach(el => el.classList.remove('active'));
-        
+
         if (activeLine !== -1) {
             const activeEl = document.querySelector(`.lyrics-line[data-index="${activeLine}"]`);
             if (activeEl) {
@@ -246,7 +249,7 @@ function findActiveLyricLine(currentTime) {
 
 function handleSearch(e) {
     const query = e.target.value.toLowerCase();
-    filteredSongs = songs.filter(song => 
+    filteredSongs = songs.filter(song =>
         song.title.toLowerCase().includes(query) ||
         song.artist.toLowerCase().includes(query) ||
         song.album.toLowerCase().includes(query)
@@ -256,7 +259,7 @@ function handleSearch(e) {
 
 function handleSort(e) {
     const sortBy = e.target.value;
-    
+
     filteredSongs.sort((a, b) => {
         switch (sortBy) {
             case 'title':
@@ -269,7 +272,7 @@ function handleSort(e) {
                 return 0;
         }
     });
-    
+
     updateTrackList();
 }
 
