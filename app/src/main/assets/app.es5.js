@@ -13,6 +13,8 @@ var lyrics = [];
 var plainLyricsText = '';
 var lyricsInterval = null;
 var shuffleEnabled = false;
+var shuffleID = 0;
+var shuffleIndex = 0;
 var repeatMode = 'off'; // 'off', 'all', 'one'
 var isSeeking = false;
 var lyricsMode = 'off'; // 'off', 'synced', 'plain'
@@ -281,9 +283,19 @@ function playNext() {
     if (!currentSong || filteredSongs.length === 0) return;
 
     if (shuffleEnabled) {
-        var randomIndex = Math.floor(Math.random() * filteredSongs.length);
-        playSong(filteredSongs[randomIndex]);
-        updateActiveTrack(randomIndex);
+        shuffleIndex++;
+        if (shuffleIndex >= filteredSongs.length) {
+            if (repeatMode === 'all') {
+                shuffleID = Math.floor(Math.random() * 2147483647);
+                shuffleIndex = 0;
+            } else {
+                shuffleIndex--;
+                return;
+            }
+        }
+        var mappedIndex = millerShuffleLite(shuffleIndex, shuffleID, filteredSongs.length);
+        playSong(filteredSongs[mappedIndex]);
+        updateActiveTrack(mappedIndex);
         return;
     }
 
@@ -314,9 +326,12 @@ function playPrevious() {
     }
 
     if (shuffleEnabled) {
-        var randomIndex = Math.floor(Math.random() * filteredSongs.length);
-        playSong(filteredSongs[randomIndex]);
-        updateActiveTrack(randomIndex);
+        if (shuffleIndex > 0) {
+            shuffleIndex--;
+            var mappedIndex = millerShuffleLite(shuffleIndex, shuffleID, filteredSongs.length);
+            playSong(filteredSongs[mappedIndex]);
+            updateActiveTrack(mappedIndex);
+        }
         return;
     }
 
@@ -362,6 +377,10 @@ function updatePlayPauseButton(isPlaying) {
 
 function toggleShuffle() {
     shuffleEnabled = !shuffleEnabled;
+    if (shuffleEnabled) {
+        shuffleID = Math.floor(Math.random() * 2147483647);
+        shuffleIndex = -1; // will be incremented to 0 on first playNext
+    }
     var btn = document.getElementById('shuffle-btn');
     if (shuffleEnabled) {
         btn.classList.add('active');
@@ -369,6 +388,33 @@ function toggleShuffle() {
         btn.classList.remove('active');
     }
     btn.title = shuffleEnabled ? 'Shuffle: On' : 'Shuffle: Off';
+}
+
+// Miller Shuffle Algorithm - Lite variant
+// Source: https://github.com/RondeSC/Miller_Shuffle_Algo
+// Produces a unique shuffled index for each input index (0 to nlim-1)
+// without needing to store the shuffled array.
+// Uses >>> 0 instead of BigInt for ES5 compatibility.
+function millerShuffleLite(inx, mixID, nlim) {
+    if (nlim <= 1) return 0;
+    if (nlim <= 2) return ((Math.floor(mixID / (Math.floor(inx / 2) + 1)) + inx) % nlim);
+
+    var p1 = 52639, p2 = 33703;
+    var randR = ((mixID ^ (13 * Math.floor(inx / nlim))) >>> 0);
+    var si = ((randR % nlim) + inx) % nlim;
+
+    var r1 = randR % 1063;
+    var r2 = randR % 3631;
+    var rx = Math.floor(randR / nlim) % nlim + 1;
+    var rx2 = Math.floor(randR / 131) % nlim + 1;
+
+    if (si % 3 === 0) si = (((si / 3) * p1 + r1) % Math.floor((nlim + 2) / 3)) * 3;
+    if (si % 2 === 0) si = (((si / 2) * p2 + r2) % Math.floor((nlim + 1) / 2)) * 2;
+    if ((si ^ rx2) < nlim) si = si ^ rx2;
+    if (si < rx) si = ((rx - si - 1) * p2 + r1 + r2) % rx;
+    else si = ((si - rx) * p1 + r2) % (nlim - rx) + rx;
+
+    return si;
 }
 
 function toggleRepeat() {
