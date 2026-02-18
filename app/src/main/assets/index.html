@@ -14,14 +14,27 @@
     <div id="app">
         <header>
             <h1>Mooseek</h1>
-            <div class="controls">
-                <input type="text" id="search" placeholder="Search songs...">
-                <select id="sort">
-                    <option value="title">A-Z</option>
-                    <option value="dateAdded">Date Added</option>
-                    <option value="dateModified">Date Modified</option>
-                </select>
-                <button id="settings-btn">Settings</button>
+            <div class="top-app-bar">
+                <div class="search-bar">
+                    <img src="search.svg" alt="Search" class="search-icon">
+                    <input type="text" id="search" placeholder="Search songs...">
+                    <button id="clear-search" class="icon-btn icon-btn-small" title="Clear search" style="display: none;">
+                        <img src="close.svg" alt="Clear" class="icon-btn-icon">
+                    </button>
+                </div>
+                <button id="sort-btn" class="icon-btn" title="Sort">
+                    <img src="sort.svg" alt="Sort" class="icon-btn-icon">
+                </button>
+                <button id="settings-btn" class="icon-btn" title="Settings">
+                    <img src="settings.svg" alt="Settings" class="icon-btn-icon">
+                </button>
+            </div>
+            
+            <!-- Sort menu -->
+            <div id="sort-menu" class="menu" style="display: none;">
+                <div class="menu-item" data-sort="title">A-Z</div>
+                <div class="menu-item" data-sort="dateAdded">Date Added</div>
+                <div class="menu-item" data-sort="dateModified">Date Modified</div>
             </div>
         </header>
 
@@ -35,11 +48,42 @@
             </div>
 
             <div class="player-section">
-                <audio id="player" controls></audio>
-                <div class="playback-controls">
-                    <button id="shuffle-btn" class="control-btn" title="Shuffle">🔀</button>
-                    <button id="repeat-btn" class="control-btn" data-mode="off" title="Repeat: Off">🔁</button>
+                <div class="now-playing">
+                    <div class="now-playing-title" id="now-playing-title">No song playing</div>
+                    <div class="now-playing-artist" id="now-playing-artist"></div>
                 </div>
+                
+                <audio id="player" style="display: none;"></audio>
+                
+                <!-- Custom progress bar -->
+                <div class="progress-container">
+                    <span class="time-label" id="current-time">0:00</span>
+                    <div class="progress-bar" id="progress-bar">
+                        <div class="progress-track"></div>
+                        <div class="progress-fill" id="progress-fill"></div>
+                        <div class="progress-handle" id="progress-handle"></div>
+                    </div>
+                    <span class="time-label" id="total-time">0:00</span>
+                </div>
+                
+                <div class="playback-controls">
+                    <button id="shuffle-btn" class="control-btn" title="Shuffle: Off">
+                        <img src="shuffle.svg" alt="Shuffle" class="control-icon">
+                    </button>
+                    <button id="prev-btn" class="control-btn control-btn-nav" title="Previous">
+                        <img src="skip-previous.svg" alt="Previous" class="control-icon">
+                    </button>
+                    <button id="play-pause-btn" class="control-btn control-btn-play" title="Play">
+                        <img src="play.svg" alt="Play" class="control-icon" id="play-pause-icon">
+                    </button>
+                    <button id="next-btn" class="control-btn control-btn-nav" title="Next">
+                        <img src="skip-next.svg" alt="Next" class="control-icon">
+                    </button>
+                    <button id="repeat-btn" class="control-btn" data-mode="off" title="Repeat: Off">
+                        <img src="repeat.svg" alt="Repeat" class="control-icon" id="repeat-icon">
+                    </button>
+                </div>
+                
                 <div id="lyrics-container" class="lyrics-container"></div>
             </div>
         </main>
