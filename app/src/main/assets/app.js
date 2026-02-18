@@ -12,6 +12,11 @@ let shuffleIndex = 0;
 let repeatMode = 'off'; // 'off', 'all', 'one'
 let isSeeking = false;
 let lyricsMode = 'off'; // 'off', 'synced', 'plain'
+let fullscreenPlayerOpen = false;
+
+function isMobile() {
+    return window.matchMedia('(max-width: 768px)').matches;
+}
 
 document.addEventListener('DOMContentLoaded', async () => {
     // Initialize audio element
@@ -62,6 +67,20 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             document.getElementById('current-time').textContent = formatTime(player.currentTime);
             document.getElementById('total-time').textContent = formatTime(player.duration);
+
+            // Sync mini player progress
+            const miniProgressFill = document.getElementById('mini-progress-fill');
+            if (miniProgressFill) miniProgressFill.style.width = percent + '%';
+
+            // Sync fullscreen player progress
+            const fsProgressFill = document.getElementById('fullscreen-progress-fill');
+            const fsProgressHandle = document.getElementById('fullscreen-progress-handle');
+            if (fsProgressFill) fsProgressFill.style.width = percent + '%';
+            if (fsProgressHandle) fsProgressHandle.style.left = percent + '%';
+            const fsCurrent = document.getElementById('fullscreen-current-time');
+            const fsTotal = document.getElementById('fullscreen-total-time');
+            if (fsCurrent) fsCurrent.textContent = formatTime(player.currentTime);
+            if (fsTotal) fsTotal.textContent = formatTime(player.duration);
         }
     }
 
@@ -98,6 +117,93 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('next-btn').addEventListener('click', playNext);
     document.getElementById('clear-search').addEventListener('click', clearSearch);
     document.getElementById('play-pause-btn').addEventListener('click', togglePlayPause);
+
+    // ---- Mini Player & Fullscreen Player event listeners ----
+    document.getElementById('mini-play-pause-btn').addEventListener('click', (e) => {
+        e.stopPropagation();
+        togglePlayPause();
+    });
+    document.getElementById('mini-next-btn').addEventListener('click', (e) => {
+        e.stopPropagation();
+        playNext();
+    });
+    document.getElementById('mini-player-tap-area').addEventListener('click', () => {
+        if (isMobile()) openFullscreenPlayer();
+    });
+    document.getElementById('fullscreen-collapse-btn').addEventListener('click', closeFullscreenPlayer);
+
+    // Fullscreen player controls
+    document.getElementById('fs-play-pause-btn').addEventListener('click', togglePlayPause);
+    document.getElementById('fs-prev-btn').addEventListener('click', playPrevious);
+    document.getElementById('fs-next-btn').addEventListener('click', playNext);
+    document.getElementById('fs-shuffle-btn').addEventListener('click', toggleShuffle);
+    document.getElementById('fs-repeat-btn').addEventListener('click', toggleRepeat);
+
+    // Fullscreen lyrics mode selector
+    document.querySelectorAll('.fullscreen-lyrics-mode-selector .lyrics-mode-btn').forEach(btn => {
+        btn.addEventListener('click', function () {
+            const mode = this.dataset.mode;
+            setLyricsMode(mode);
+        });
+    });
+
+    // Fullscreen progress bar interaction (mouse)
+    const fsProgressBar = document.getElementById('fullscreen-progress-bar');
+    fsProgressBar.addEventListener('mousedown', (e) => {
+        isSeeking = true;
+        fsProgressBar.classList.add('seeking');
+        seekFullscreen(e);
+
+        const onMouseMove = (e) => seekFullscreen(e);
+        const onMouseUp = () => {
+            isSeeking = false;
+            fsProgressBar.classList.remove('seeking');
+            document.removeEventListener('mousemove', onMouseMove);
+            document.removeEventListener('mouseup', onMouseUp);
+        };
+
+        document.addEventListener('mousemove', onMouseMove);
+        document.addEventListener('mouseup', onMouseUp);
+    });
+    fsProgressBar.addEventListener('click', seekFullscreen);
+
+    // Fullscreen progress bar interaction (touch)
+    fsProgressBar.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        isSeeking = true;
+        fsProgressBar.classList.add('seeking');
+        seekFullscreenTouch(e);
+
+        const onTouchMove = (e) => { e.preventDefault(); seekFullscreenTouch(e); };
+        const onTouchEnd = () => {
+            isSeeking = false;
+            fsProgressBar.classList.remove('seeking');
+            document.removeEventListener('touchmove', onTouchMove);
+            document.removeEventListener('touchend', onTouchEnd);
+        };
+
+        document.addEventListener('touchmove', onTouchMove);
+        document.addEventListener('touchend', onTouchEnd);
+    });
+
+    function seekFullscreen(e) {
+        const rect = fsProgressBar.getBoundingClientRect();
+        const percent = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+        if (player.duration) {
+            player.currentTime = percent * player.duration;
+            updateProgress();
+        }
+    }
+
+    function seekFullscreenTouch(e) {
+        const touch = e.touches[0];
+        const rect = fsProgressBar.getBoundingClientRect();
+        const percent = Math.max(0, Math.min(1, (touch.clientX - rect.left) / rect.width));
+        if (player.duration) {
+            player.currentTime = percent * player.duration;
+            updateProgress();
+        }
+    }
 
     // Lyrics mode selector
     document.querySelectorAll('.lyrics-mode-btn').forEach(btn => {
@@ -194,24 +300,40 @@ function playSong(song) {
 
     // Reset lyrics display to off state
     lyricsMode = 'off';
-    const selector = document.querySelector('.lyrics-mode-selector');
-    selector.setAttribute('data-active', 'off');
+    document.querySelectorAll('.lyrics-mode-selector').forEach(sel => {
+        sel.setAttribute('data-active', 'off');
+    });
     document.querySelectorAll('.lyrics-mode-btn').forEach(btn => {
         btn.classList.toggle('active', btn.dataset.mode === 'off');
     });
     document.getElementById('lyrics-container').innerHTML = '';
+    const fsLyricsContainer = document.getElementById('fullscreen-lyrics-container');
+    if (fsLyricsContainer) fsLyricsContainer.innerHTML = '';
 }
 
 function updateNowPlaying(song) {
     const titleEl = document.getElementById('now-playing-title');
     const artistEl = document.getElementById('now-playing-artist');
+    const miniTitleEl = document.getElementById('mini-player-title');
+    const miniArtistEl = document.getElementById('mini-player-artist');
+    const fsTitleEl = document.getElementById('fullscreen-now-playing-title');
+    const fsArtistEl = document.getElementById('fullscreen-now-playing-artist');
 
     if (song) {
+        const artistText = `${song.artist}${song.album ? ' • ' + song.album : ''}`;
         titleEl.textContent = song.title;
-        artistEl.textContent = `${song.artist}${song.album ? ' • ' + song.album : ''}`;
+        artistEl.textContent = artistText;
+        if (miniTitleEl) miniTitleEl.textContent = song.title;
+        if (miniArtistEl) miniArtistEl.textContent = song.artist;
+        if (fsTitleEl) fsTitleEl.textContent = song.title;
+        if (fsArtistEl) fsArtistEl.textContent = artistText;
     } else {
         titleEl.textContent = 'No song playing';
         artistEl.textContent = '';
+        if (miniTitleEl) miniTitleEl.textContent = 'No song playing';
+        if (miniArtistEl) miniArtistEl.textContent = '';
+        if (fsTitleEl) fsTitleEl.textContent = 'No song playing';
+        if (fsArtistEl) fsArtistEl.textContent = '';
     }
 }
 
@@ -285,15 +407,25 @@ function togglePlayPause() {
 function updatePlayPauseButton(isPlaying) {
     const btn = document.getElementById('play-pause-btn');
     const icon = document.getElementById('play-pause-icon');
+    const miniIcon = document.getElementById('mini-play-pause-icon');
+    const fsIcon = document.getElementById('fs-play-pause-icon');
 
-    if (isPlaying) {
-        icon.src = 'pause.svg';
-        icon.alt = 'Pause';
-        btn.title = 'Pause';
-    } else {
-        icon.src = 'play.svg';
-        icon.alt = 'Play';
-        btn.title = 'Play';
+    const src = isPlaying ? 'pause.svg' : 'play.svg';
+    const alt = isPlaying ? 'Pause' : 'Play';
+
+    icon.src = src;
+    icon.alt = alt;
+    btn.title = alt;
+
+    if (miniIcon) {
+        miniIcon.src = src;
+        miniIcon.alt = alt;
+    }
+    if (fsIcon) {
+        fsIcon.src = src;
+        fsIcon.alt = alt;
+        const fsBtn = document.getElementById('fs-play-pause-btn');
+        if (fsBtn) fsBtn.title = alt;
     }
 }
 
@@ -303,9 +435,15 @@ function toggleShuffle() {
         shuffleID = Math.floor(Math.random() * 2147483647);
         shuffleIndex = -1; // will be incremented to 0 on first playNext
     }
-    const btn = document.getElementById('shuffle-btn');
-    btn.classList.toggle('active', shuffleEnabled);
-    btn.title = shuffleEnabled ? 'Shuffle: On' : 'Shuffle: Off';
+    // Sync both desktop and fullscreen buttons
+    const title = shuffleEnabled ? 'Shuffle: On' : 'Shuffle: Off';
+    ['shuffle-btn', 'fs-shuffle-btn'].forEach(id => {
+        const btn = document.getElementById(id);
+        if (btn) {
+            btn.classList.toggle('active', shuffleEnabled);
+            btn.title = title;
+        }
+    });
 }
 
 // Miller Shuffle Algorithm - Lite variant
@@ -335,8 +473,6 @@ function millerShuffleLite(inx, mixID, nlim) {
 }
 
 function toggleRepeat() {
-    const btn = document.getElementById('repeat-btn');
-    const icon = document.getElementById('repeat-icon');
     const modes = ['off', 'all', 'one'];
     const labels = { off: 'Repeat: Off', all: 'Repeat: All', one: 'Repeat: One' };
     const icons = { off: 'repeat.svg', all: 'repeat.svg', one: 'repeat-one.svg' };
@@ -344,10 +480,17 @@ function toggleRepeat() {
     const currentIndex = modes.indexOf(repeatMode);
     repeatMode = modes[(currentIndex + 1) % modes.length];
 
-    btn.dataset.mode = repeatMode;
-    btn.title = labels[repeatMode];
-    icon.src = icons[repeatMode];
-    btn.classList.toggle('active', repeatMode !== 'off');
+    // Sync both desktop and fullscreen buttons
+    [{ btn: 'repeat-btn', icon: 'repeat-icon' }, { btn: 'fs-repeat-btn', icon: 'fs-repeat-icon' }].forEach(pair => {
+        const btn = document.getElementById(pair.btn);
+        const icon = document.getElementById(pair.icon);
+        if (btn && icon) {
+            btn.dataset.mode = repeatMode;
+            btn.title = labels[repeatMode];
+            icon.src = icons[repeatMode];
+            btn.classList.toggle('active', repeatMode !== 'off');
+        }
+    });
 }
 
 function updateActiveTrack(index) {
@@ -494,32 +637,37 @@ function parseSyncedLyrics(lyricsText) {
 
 function displayLyrics() {
     const container = document.getElementById('lyrics-container');
+    const fsContainer = document.getElementById('fullscreen-lyrics-container');
 
     if (lyricsMode === 'off') {
         container.innerHTML = '';
+        if (fsContainer) fsContainer.innerHTML = '';
         return;
     }
 
+    let html = '';
     if (lyricsMode === 'synced') {
         if (lyrics.length === 0) {
-            // If no synced lyrics but plain lyrics exist, show plain lyrics with a note
             if (plainLyricsText) {
-                container.innerHTML = `<div class="lyrics-fallback-note">Synced lyrics not available. Showing plain lyrics:</div><div class="lyrics-plain">${escapeHtml(plainLyricsText)}</div>`;
+                html = `<div class="lyrics-fallback-note">Synced lyrics not available. Showing plain lyrics:</div><div class="lyrics-plain">${escapeHtml(plainLyricsText)}</div>`;
             } else {
-                container.innerHTML = '<div class="lyrics-error">No synced lyrics available</div>';
+                html = '<div class="lyrics-error">No synced lyrics available</div>';
             }
-            return;
+        } else {
+            html = lyrics.map((line, index) =>
+                `<div class="lyrics-line" data-index="${index}">${escapeHtml(line.text) || '♪'}</div>`
+            ).join('');
         }
-        container.innerHTML = lyrics.map((line, index) =>
-            `<div class="lyrics-line" data-index="${index}">${escapeHtml(line.text) || '♪'}</div>`
-        ).join('');
     } else if (lyricsMode === 'plain') {
         if (!plainLyricsText) {
-            container.innerHTML = '<div class="lyrics-error">No plain lyrics available</div>';
-            return;
+            html = '<div class="lyrics-error">No plain lyrics available</div>';
+        } else {
+            html = `<div class="lyrics-plain">${escapeHtml(plainLyricsText)}</div>`;
         }
-        container.innerHTML = `<div class="lyrics-plain">${escapeHtml(plainLyricsText)}</div>`;
     }
+
+    container.innerHTML = html;
+    if (fsContainer) fsContainer.innerHTML = html;
 }
 
 function startLyricsSync() {
@@ -616,11 +764,12 @@ function setLyricsMode(mode) {
     const previousMode = lyricsMode;
     lyricsMode = mode;
 
-    // Update selector state
-    const selector = document.querySelector('.lyrics-mode-selector');
-    selector.setAttribute('data-active', mode);
+    // Update ALL selector states (both desktop and fullscreen)
+    document.querySelectorAll('.lyrics-mode-selector').forEach(sel => {
+        sel.setAttribute('data-active', mode);
+    });
 
-    // Update button states
+    // Update ALL button states
     document.querySelectorAll('.lyrics-mode-btn').forEach(btn => {
         btn.classList.toggle('active', btn.dataset.mode === mode);
     });
@@ -647,6 +796,21 @@ function openSettings() {
 
 function closeSettings() {
     document.getElementById('settings-modal').style.display = 'none';
+}
+
+// ---- Fullscreen Player ----
+function openFullscreenPlayer() {
+    const fsPlayer = document.getElementById('fullscreen-player');
+    fsPlayer.classList.add('open');
+    document.body.classList.add('fullscreen-player-open');
+    fullscreenPlayerOpen = true;
+}
+
+function closeFullscreenPlayer() {
+    const fsPlayer = document.getElementById('fullscreen-player');
+    fsPlayer.classList.remove('open');
+    document.body.classList.remove('fullscreen-player-open');
+    fullscreenPlayerOpen = false;
 }
 
 function formatDuration(ms) {

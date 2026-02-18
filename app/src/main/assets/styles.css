@@ -291,50 +291,21 @@ main {
         margin-bottom: 12px;
     }
 
-    /* Reorder: search controls, now playing, track list */
+    /* Reorder: track list is main content on mobile */
     main {
         display: flex;
         flex-direction: column;
     }
 
-    /* Now playing card comes first (after header) */
-    .player-section {
-        order: 1;
-        position: static;
-        margin-bottom: 12px;
-        padding: 16px;
-    }
-
-    /* Track list comes second */
+    /* Track list is the primary view */
     .track-list {
-        order: 2;
+        order: 1;
     }
 
     /* Compact lyrics on mobile */
     .lyrics-container {
         max-height: 200px;
         padding: 12px;
-    }
-
-    /* Make now playing more compact on mobile */
-    .now-playing {
-        margin-bottom: 16px;
-        padding: 12px;
-        min-height: 60px;
-    }
-
-    .now-playing-title {
-        font-size: var(--md-sys-typescale-title-medium);
-    }
-
-    .now-playing-artist {
-        font-size: var(--md-sys-typescale-body-small);
-    }
-
-    /* Adjust track list height for mobile */
-    .clusterize-scroll {
-        height: calc(100vh - 380px);
-        min-height: 300px;
     }
 
     /* Make search bar more compact on mobile */
@@ -900,4 +871,319 @@ main {
 .clusterize-scroll::-webkit-scrollbar-thumb:hover,
 .lyrics-container::-webkit-scrollbar-thumb:hover {
     background: var(--md-sys-color-on-surface-variant);
+}
+
+/* ==========================================================================
+   Mini Player & Fullscreen Player (Mobile Only)
+   ========================================================================== */
+
+/* Hidden on desktop by default */
+.mini-player,
+.fullscreen-player {
+    display: none;
+}
+
+@media (max-width: 768px) {
+
+    /* Hide the desktop player section on mobile */
+    .player-section {
+        display: none !important;
+    }
+
+    /* Track list needs bottom padding so content isn't hidden behind mini player */
+    .track-list {
+        margin-bottom: 0;
+    }
+
+    .clusterize-scroll {
+        /* Account for header + mini player card */
+        height: calc(100vh - 160px) !important;
+        /* dvh accounts for mobile browser address bars */
+        height: calc(100dvh - 160px) !important;
+        min-height: 200px;
+    }
+
+    /* ---- Mini Player Bar ---- */
+    .mini-player {
+        display: flex;
+        /* always visible on mobile */
+        position: fixed;
+        bottom: 8px;
+        left: 12px;
+        right: 12px;
+        z-index: 50;
+        background: var(--md-sys-color-surface-container);
+        flex-direction: column;
+        overflow: hidden;
+        border-radius: var(--md-sys-shape-corner-large);
+        /* safe area for phones with gesture bars */
+        margin-bottom: env(safe-area-inset-bottom, 0px);
+    }
+
+    /* Progress bar hidden until a song is playing */
+    .mini-player-progress {
+        display: none;
+    }
+
+    .mini-player-progress-fill {
+        height: 100%;
+        background: var(--md-sys-color-primary);
+        width: 0%;
+        transition: width 0.3s linear;
+    }
+
+    .mini-player-content {
+        display: flex;
+        align-items: center;
+        padding: 12px 12px 12px 16px;
+        gap: 12px;
+        cursor: pointer;
+        -webkit-tap-highlight-color: transparent;
+    }
+
+    .mini-player-content:active {
+        background: var(--md-sys-color-surface-container-highest);
+    }
+
+    .mini-player-info {
+        flex: 1;
+        min-width: 0;
+        /* allow text truncation */
+    }
+
+    .mini-player-title {
+        font-size: var(--md-sys-typescale-body-large);
+        font-weight: 500;
+        color: var(--md-sys-color-on-surface);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .mini-player-artist {
+        font-size: var(--md-sys-typescale-body-small);
+        color: var(--md-sys-color-on-surface-variant);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        margin-top: 1px;
+    }
+
+    .mini-player-controls {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        flex-shrink: 0;
+    }
+
+    /* Play button — round with primary background */
+    .mini-control-btn-play {
+        width: 40px;
+        height: 40px;
+        min-width: 40px;
+        min-height: 40px;
+        aspect-ratio: 1;
+        border-radius: 50% !important;
+        border: none !important;
+        background: var(--md-sys-color-primary) !important;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0;
+        flex-shrink: 0;
+        -webkit-tap-highlight-color: transparent;
+        -webkit-appearance: none;
+        appearance: none;
+        outline: none;
+        box-shadow: none;
+        overflow: hidden;
+        transition: opacity 0.15s;
+    }
+
+    .mini-control-btn-play:active {
+        opacity: 0.8;
+    }
+
+    .mini-control-btn-play .mini-control-icon {
+        width: 22px;
+        height: 22px;
+        filter: brightness(0) invert(1);
+    }
+
+    /* Next button — bare icon, no background or shape */
+    .mini-control-btn-skip {
+        border: none;
+        background: none !important;
+        background-color: transparent !important;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 8px;
+        -webkit-tap-highlight-color: transparent;
+        -webkit-appearance: none;
+        appearance: none;
+        outline: none;
+        box-shadow: none;
+    }
+
+    .mini-control-btn-skip .mini-control-icon {
+        width: 24px;
+        height: 24px;
+        opacity: 0.7;
+    }
+
+    /* ---- Fullscreen Player Overlay ---- */
+    .fullscreen-player {
+        display: flex;
+        flex-direction: column;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        z-index: 200;
+        background: var(--md-sys-color-surface);
+        /* Slide up from bottom */
+        transform: translateY(100%);
+        transition: transform 0.35s cubic-bezier(0.2, 0, 0, 1);
+        /* safe area */
+        padding-bottom: env(safe-area-inset-bottom, 0px);
+        will-change: transform;
+        overflow: hidden;
+    }
+
+    .fullscreen-player.open {
+        transform: translateY(0);
+    }
+
+    /* Header: collapse button + "Now Playing" label */
+    .fullscreen-player-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 8px 8px 0 8px;
+        flex-shrink: 0;
+    }
+
+    .fullscreen-header-title {
+        font-size: var(--md-sys-typescale-label-large);
+        font-weight: 500;
+        color: var(--md-sys-color-on-surface-variant);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    /* Body: flex column — lyrics fill top, controls pinned bottom */
+    .fullscreen-player-body {
+        flex: 1;
+        overflow-y: auto;
+        padding: 8px 24px 24px;
+        display: flex;
+        flex-direction: column;
+        gap: 0;
+        min-height: 0;
+    }
+
+    /* Controls group — pushed to bottom */
+    .fullscreen-controls-group {
+        flex-shrink: 0;
+        margin-top: auto;
+    }
+
+    /* Now-playing area in fullscreen */
+    .fullscreen-now-playing {
+        text-align: center;
+        padding: 8px 8px 12px;
+    }
+
+    .fullscreen-now-playing-title {
+        font-size: var(--md-sys-typescale-headline-medium);
+        font-weight: 500;
+        color: var(--md-sys-color-on-surface);
+        margin-bottom: 8px;
+        line-height: 1.3;
+        /* allow wrapping for long titles */
+        overflow-wrap: break-word;
+    }
+
+    .fullscreen-now-playing-artist {
+        font-size: var(--md-sys-typescale-body-large);
+        color: var(--md-sys-color-on-surface-variant);
+    }
+
+    /* Progress bar in fullscreen — slightly bigger touch target */
+    .fullscreen-player-body .progress-container {
+        margin-top: 4px;
+        margin-bottom: 4px;
+    }
+
+    .fullscreen-player-body .progress-bar {
+        height: 40px;
+        padding: 12px 0;
+    }
+
+    .fullscreen-player-body .progress-track {
+        height: 6px;
+        border-radius: 3px;
+    }
+
+    .fullscreen-player-body .progress-fill {
+        height: 6px;
+        border-radius: 3px;
+    }
+
+    .fullscreen-player-body .progress-handle {
+        width: 20px;
+        height: 20px;
+        opacity: 1;
+    }
+
+    /* Playback controls in fullscreen — larger buttons */
+    .fullscreen-player-body .playback-controls {
+        margin-top: 4px;
+        gap: 12px;
+    }
+
+    .fullscreen-player-body .control-btn-play {
+        width: 72px;
+        height: 72px;
+    }
+
+    .fullscreen-player-body .control-btn-play .control-icon {
+        width: 36px;
+        height: 36px;
+    }
+
+    .fullscreen-player-body .control-btn-nav {
+        width: 60px;
+        height: 60px;
+    }
+
+    .fullscreen-player-body .control-btn-nav .control-icon {
+        width: 32px;
+        height: 32px;
+    }
+
+    /* Lyrics at top — takes available space */
+    .fullscreen-lyrics-wrapper {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        min-height: 80px;
+        margin-bottom: 16px;
+    }
+
+    .fullscreen-lyrics-wrapper .lyrics-container {
+        flex: 1;
+        max-height: none;
+        min-height: 80px;
+        overflow-y: auto;
+    }
+
+    /* Prevent body scroll when fullscreen player is open */
+    body.fullscreen-player-open {
+        overflow: hidden;
+    }
 }

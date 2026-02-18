@@ -18,6 +18,11 @@ var shuffleIndex = 0;
 var repeatMode = 'off'; // 'off', 'all', 'one'
 var isSeeking = false;
 var lyricsMode = 'off'; // 'off', 'synced', 'plain'
+var fullscreenPlayerOpen = false;
+
+function isMobile() {
+    return window.matchMedia('(max-width: 768px)').matches;
+}
 
 document.addEventListener('DOMContentLoaded', function () {
     // Initialize audio element
@@ -98,6 +103,20 @@ document.addEventListener('DOMContentLoaded', function () {
 
             document.getElementById('current-time').textContent = formatTime(player.currentTime);
             document.getElementById('total-time').textContent = formatTime(player.duration);
+
+            // Sync mini player progress
+            var miniProgressFill = document.getElementById('mini-progress-fill');
+            if (miniProgressFill) miniProgressFill.style.width = percent + '%';
+
+            // Sync fullscreen player progress
+            var fsProgressFill = document.getElementById('fullscreen-progress-fill');
+            var fsProgressHandle = document.getElementById('fullscreen-progress-handle');
+            if (fsProgressFill) fsProgressFill.style.width = percent + '%';
+            if (fsProgressHandle) fsProgressHandle.style.left = percent + '%';
+            var fsCurrent = document.getElementById('fullscreen-current-time');
+            var fsTotal = document.getElementById('fullscreen-total-time');
+            if (fsCurrent) fsCurrent.textContent = formatTime(player.currentTime);
+            if (fsTotal) fsTotal.textContent = formatTime(player.duration);
         }
     }
 
@@ -133,6 +152,94 @@ document.addEventListener('DOMContentLoaded', function () {
         document.getElementById('next-btn').addEventListener('click', playNext);
         document.getElementById('clear-search').addEventListener('click', clearSearch);
         document.getElementById('play-pause-btn').addEventListener('click', togglePlayPause);
+
+        // ---- Mini Player & Fullscreen Player event listeners ----
+        document.getElementById('mini-play-pause-btn').addEventListener('click', function (e) {
+            e.stopPropagation();
+            togglePlayPause();
+        });
+        document.getElementById('mini-next-btn').addEventListener('click', function (e) {
+            e.stopPropagation();
+            playNext();
+        });
+        document.getElementById('mini-player-tap-area').addEventListener('click', function () {
+            if (isMobile()) openFullscreenPlayer();
+        });
+        document.getElementById('fullscreen-collapse-btn').addEventListener('click', closeFullscreenPlayer);
+
+        // Fullscreen player controls
+        document.getElementById('fs-play-pause-btn').addEventListener('click', togglePlayPause);
+        document.getElementById('fs-prev-btn').addEventListener('click', playPrevious);
+        document.getElementById('fs-next-btn').addEventListener('click', playNext);
+        document.getElementById('fs-shuffle-btn').addEventListener('click', toggleShuffle);
+        document.getElementById('fs-repeat-btn').addEventListener('click', toggleRepeat);
+
+        // Fullscreen lyrics mode selector
+        var fsLyricsBtns = document.querySelectorAll('.fullscreen-lyrics-mode-selector .lyrics-mode-btn');
+        for (var fi = 0; fi < fsLyricsBtns.length; fi++) {
+            fsLyricsBtns[fi].addEventListener('click', function () {
+                var mode = this.getAttribute('data-mode');
+                setLyricsMode(mode);
+            });
+        }
+
+        // Fullscreen progress bar interaction (mouse)
+        var fsProgressBar = document.getElementById('fullscreen-progress-bar');
+        fsProgressBar.addEventListener('mousedown', function (e) {
+            isSeeking = true;
+            fsProgressBar.classList.add('seeking');
+            seekFsBar(e);
+
+            var onMouseMove = function (e) { seekFsBar(e); };
+            var onMouseUp = function () {
+                isSeeking = false;
+                fsProgressBar.classList.remove('seeking');
+                document.removeEventListener('mousemove', onMouseMove);
+                document.removeEventListener('mouseup', onMouseUp);
+            };
+
+            document.addEventListener('mousemove', onMouseMove);
+            document.addEventListener('mouseup', onMouseUp);
+        });
+        fsProgressBar.addEventListener('click', seekFsBar);
+
+        // Fullscreen progress bar interaction (touch)
+        fsProgressBar.addEventListener('touchstart', function (e) {
+            e.preventDefault();
+            isSeeking = true;
+            fsProgressBar.classList.add('seeking');
+            seekFsBarTouch(e);
+
+            var onTouchMove = function (e) { e.preventDefault(); seekFsBarTouch(e); };
+            var onTouchEnd = function () {
+                isSeeking = false;
+                fsProgressBar.classList.remove('seeking');
+                document.removeEventListener('touchmove', onTouchMove);
+                document.removeEventListener('touchend', onTouchEnd);
+            };
+
+            document.addEventListener('touchmove', onTouchMove);
+            document.addEventListener('touchend', onTouchEnd);
+        });
+
+        function seekFsBar(e) {
+            var rect = fsProgressBar.getBoundingClientRect();
+            var percent = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+            if (player.duration) {
+                player.currentTime = percent * player.duration;
+                updateProgress();
+            }
+        }
+
+        function seekFsBarTouch(e) {
+            var touch = e.touches[0];
+            var rect = fsProgressBar.getBoundingClientRect();
+            var percent = Math.max(0, Math.min(1, (touch.clientX - rect.left) / rect.width));
+            if (player.duration) {
+                player.currentTime = percent * player.duration;
+                updateProgress();
+            }
+        }
 
         // Lyrics mode selector
         var lyricsBtns = document.querySelectorAll('.lyrics-mode-btn');
@@ -253,8 +360,10 @@ function playSong(song) {
 
     // Reset lyrics display to off state
     lyricsMode = 'off';
-    var selector = document.querySelector('.lyrics-mode-selector');
-    selector.setAttribute('data-active', 'off');
+    var selectors = document.querySelectorAll('.lyrics-mode-selector');
+    for (var s = 0; s < selectors.length; s++) {
+        selectors[s].setAttribute('data-active', 'off');
+    }
     var btns = document.querySelectorAll('.lyrics-mode-btn');
     for (var i = 0; i < btns.length; i++) {
         if (btns[i].getAttribute('data-mode') === 'off') {
@@ -264,18 +373,33 @@ function playSong(song) {
         }
     }
     document.getElementById('lyrics-container').innerHTML = '';
+    var fsLyricsContainer = document.getElementById('fullscreen-lyrics-container');
+    if (fsLyricsContainer) fsLyricsContainer.innerHTML = '';
 }
 
 function updateNowPlaying(song) {
     var titleEl = document.getElementById('now-playing-title');
     var artistEl = document.getElementById('now-playing-artist');
+    var miniTitleEl = document.getElementById('mini-player-title');
+    var miniArtistEl = document.getElementById('mini-player-artist');
+    var fsTitleEl = document.getElementById('fullscreen-now-playing-title');
+    var fsArtistEl = document.getElementById('fullscreen-now-playing-artist');
 
     if (song) {
+        var artistText = song.artist + (song.album ? ' \u2022 ' + song.album : '');
         titleEl.textContent = song.title;
-        artistEl.textContent = song.artist + (song.album ? ' \u2022 ' + song.album : '');
+        artistEl.textContent = artistText;
+        if (miniTitleEl) miniTitleEl.textContent = song.title;
+        if (miniArtistEl) miniArtistEl.textContent = song.artist;
+        if (fsTitleEl) fsTitleEl.textContent = song.title;
+        if (fsArtistEl) fsArtistEl.textContent = artistText;
     } else {
         titleEl.textContent = 'No song playing';
         artistEl.textContent = '';
+        if (miniTitleEl) miniTitleEl.textContent = 'No song playing';
+        if (miniArtistEl) miniArtistEl.textContent = '';
+        if (fsTitleEl) fsTitleEl.textContent = 'No song playing';
+        if (fsArtistEl) fsArtistEl.textContent = '';
     }
 }
 
@@ -363,15 +487,25 @@ function togglePlayPause() {
 function updatePlayPauseButton(isPlaying) {
     var btn = document.getElementById('play-pause-btn');
     var icon = document.getElementById('play-pause-icon');
+    var miniIcon = document.getElementById('mini-play-pause-icon');
+    var fsIcon = document.getElementById('fs-play-pause-icon');
 
-    if (isPlaying) {
-        icon.src = 'pause.svg';
-        icon.alt = 'Pause';
-        btn.title = 'Pause';
-    } else {
-        icon.src = 'play.svg';
-        icon.alt = 'Play';
-        btn.title = 'Play';
+    var src = isPlaying ? 'pause.svg' : 'play.svg';
+    var alt = isPlaying ? 'Pause' : 'Play';
+
+    icon.src = src;
+    icon.alt = alt;
+    btn.title = alt;
+
+    if (miniIcon) {
+        miniIcon.src = src;
+        miniIcon.alt = alt;
+    }
+    if (fsIcon) {
+        fsIcon.src = src;
+        fsIcon.alt = alt;
+        var fsBtn = document.getElementById('fs-play-pause-btn');
+        if (fsBtn) fsBtn.title = alt;
     }
 }
 
@@ -381,13 +515,20 @@ function toggleShuffle() {
         shuffleID = Math.floor(Math.random() * 2147483647);
         shuffleIndex = -1; // will be incremented to 0 on first playNext
     }
-    var btn = document.getElementById('shuffle-btn');
-    if (shuffleEnabled) {
-        btn.classList.add('active');
-    } else {
-        btn.classList.remove('active');
+    // Sync both desktop and fullscreen buttons
+    var title = shuffleEnabled ? 'Shuffle: On' : 'Shuffle: Off';
+    var ids = ['shuffle-btn', 'fs-shuffle-btn'];
+    for (var i = 0; i < ids.length; i++) {
+        var btn = document.getElementById(ids[i]);
+        if (btn) {
+            if (shuffleEnabled) {
+                btn.classList.add('active');
+            } else {
+                btn.classList.remove('active');
+            }
+            btn.title = title;
+        }
     }
-    btn.title = shuffleEnabled ? 'Shuffle: On' : 'Shuffle: Off';
 }
 
 // Miller Shuffle Algorithm - Lite variant
@@ -418,8 +559,6 @@ function millerShuffleLite(inx, mixID, nlim) {
 }
 
 function toggleRepeat() {
-    var btn = document.getElementById('repeat-btn');
-    var icon = document.getElementById('repeat-icon');
     var modes = ['off', 'all', 'one'];
     var labels = { off: 'Repeat: Off', all: 'Repeat: All', one: 'Repeat: One' };
     var icons = { off: 'repeat.svg', all: 'repeat.svg', one: 'repeat-one.svg' };
@@ -427,13 +566,24 @@ function toggleRepeat() {
     var currentIndex = modes.indexOf(repeatMode);
     repeatMode = modes[(currentIndex + 1) % modes.length];
 
-    btn.setAttribute('data-mode', repeatMode);
-    btn.title = labels[repeatMode];
-    icon.src = icons[repeatMode];
-    if (repeatMode !== 'off') {
-        btn.classList.add('active');
-    } else {
-        btn.classList.remove('active');
+    // Sync both desktop and fullscreen buttons
+    var pairs = [
+        { btnId: 'repeat-btn', iconId: 'repeat-icon' },
+        { btnId: 'fs-repeat-btn', iconId: 'fs-repeat-icon' }
+    ];
+    for (var i = 0; i < pairs.length; i++) {
+        var btn = document.getElementById(pairs[i].btnId);
+        var icon = document.getElementById(pairs[i].iconId);
+        if (btn && icon) {
+            btn.setAttribute('data-mode', repeatMode);
+            btn.title = labels[repeatMode];
+            icon.src = icons[repeatMode];
+            if (repeatMode !== 'off') {
+                btn.classList.add('active');
+            } else {
+                btn.classList.remove('active');
+            }
+        }
     }
 }
 
@@ -618,36 +768,39 @@ function parseSyncedLyrics(lyricsText) {
 
 function displayLyrics() {
     var container = document.getElementById('lyrics-container');
+    var fsContainer = document.getElementById('fullscreen-lyrics-container');
 
     if (lyricsMode === 'off') {
         container.innerHTML = '';
+        if (fsContainer) fsContainer.innerHTML = '';
         return;
     }
 
+    var html = '';
     if (lyricsMode === 'synced') {
         if (lyrics.length === 0) {
-            // If no synced lyrics but plain lyrics exist, show plain lyrics with a note
             if (plainLyricsText) {
-                container.innerHTML = '<div class="lyrics-fallback-note">Synced lyrics not available. Showing plain lyrics:</div>' +
+                html = '<div class="lyrics-fallback-note">Synced lyrics not available. Showing plain lyrics:</div>' +
                     '<div class="lyrics-plain">' + escapeHtml(plainLyricsText) + '</div>';
             } else {
-                container.innerHTML = '<div class="lyrics-error">No synced lyrics available</div>';
+                html = '<div class="lyrics-error">No synced lyrics available</div>';
             }
-            return;
+        } else {
+            for (var i = 0; i < lyrics.length; i++) {
+                var lineText = escapeHtml(lyrics[i].text) || '\u266A';
+                html += '<div class="lyrics-line" data-index="' + i + '">' + lineText + '</div>';
+            }
         }
-        var html = '';
-        for (var i = 0; i < lyrics.length; i++) {
-            var lineText = escapeHtml(lyrics[i].text) || '\u266A';
-            html += '<div class="lyrics-line" data-index="' + i + '">' + lineText + '</div>';
-        }
-        container.innerHTML = html;
     } else if (lyricsMode === 'plain') {
         if (!plainLyricsText) {
-            container.innerHTML = '<div class="lyrics-error">No plain lyrics available</div>';
-            return;
+            html = '<div class="lyrics-error">No plain lyrics available</div>';
+        } else {
+            html = '<div class="lyrics-plain">' + escapeHtml(plainLyricsText) + '</div>';
         }
-        container.innerHTML = '<div class="lyrics-plain">' + escapeHtml(plainLyricsText) + '</div>';
     }
+
+    container.innerHTML = html;
+    if (fsContainer) fsContainer.innerHTML = html;
 }
 
 function startLyricsSync() {
@@ -760,11 +913,13 @@ function setLyricsMode(mode) {
     var previousMode = lyricsMode;
     lyricsMode = mode;
 
-    // Update selector state
-    var selector = document.querySelector('.lyrics-mode-selector');
-    selector.setAttribute('data-active', mode);
+    // Update ALL selector states (both desktop and fullscreen)
+    var selectors = document.querySelectorAll('.lyrics-mode-selector');
+    for (var s = 0; s < selectors.length; s++) {
+        selectors[s].setAttribute('data-active', mode);
+    }
 
-    // Update button states
+    // Update ALL button states
     var btns = document.querySelectorAll('.lyrics-mode-btn');
     for (var i = 0; i < btns.length; i++) {
         if (btns[i].getAttribute('data-mode') === mode) {
@@ -796,6 +951,21 @@ function openSettings() {
 
 function closeSettings() {
     document.getElementById('settings-modal').style.display = 'none';
+}
+
+// ---- Fullscreen Player ----
+function openFullscreenPlayer() {
+    var fsPlayer = document.getElementById('fullscreen-player');
+    fsPlayer.classList.add('open');
+    document.body.classList.add('fullscreen-player-open');
+    fullscreenPlayerOpen = true;
+}
+
+function closeFullscreenPlayer() {
+    var fsPlayer = document.getElementById('fullscreen-player');
+    fsPlayer.classList.remove('open');
+    document.body.classList.remove('fullscreen-player-open');
+    fullscreenPlayerOpen = false;
 }
 
 function formatDuration(ms) {
