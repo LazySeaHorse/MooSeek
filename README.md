@@ -10,11 +10,12 @@ I have a huge collection of music on my phone, and I wanted to play it on differ
 
 ## Features
 - **Stream your music library** from your Android phone to any device on the same Wi-Fi network
-- **Modern web player**: Search, sort, and play your tracks in a clean UI ([ft. Plyr](https://github.com/sampotts/plyr))
+- **Modern web player**: Search, sort, and play your tracks in a clean Material Design 3 UI ([ft. Plyr](https://github.com/sampotts/plyr))
+- **Lyrics support**: Integrated lyrics fetching using LRCLIB
 - **No sync or upload**: Your music stays on your phone
 - **Works on anything with a browser**: TV, laptop, tablet, etc.
 
-[![retgftdfs.png](https://i.postimg.cc/tJm7rhhw/retgftdfs.png)](https://postimg.cc/64n9q4bf)
+[![rtdhydrtxfvdgcvc.png](https://i.postimg.cc/28PqWc9G/rtdhydrtxfvdgcvc.png)](https://postimg.cc/YhzqK3HL)
 
 ## How it works
 - The Android app runs a tiny web server on your phone (port 8080)
@@ -33,15 +34,14 @@ I have a huge collection of music on my phone, and I wanted to play it on differ
 3. **Open the web player**
    - On any device connected to the same Wi-Fi, open the server address in a browser
    - Enjoy your music!
-4. **(Optional) Lyrics**
-   - ~~Get a [MusixMatch API key](https://developer.musixmatch.com/) and enter it in the web player settings for lyrics support~~ Lyrics fetching is currently broken. I'm working on a fix.
+4. **Lyrics**
+   - Lyrics are automatically fetched and displayed for your tracks using the LRCLIB API
 
 ## To Do
 - [ ] Finish and polish the remote control feature (control playback from your phone)
-- [ ] Fix lyrics!!!
 - [ ] Signed APK
 - [ ] Better UI? Maybe
 - [ ] iOS app
 
 ## License
-MIT
+GPL-3.0 license
