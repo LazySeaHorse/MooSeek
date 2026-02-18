@@ -23,12 +23,12 @@
     --md-sys-color-on-primary: #FFFFFF;
     --md-sys-color-primary-container: #EADDFF;
     --md-sys-color-on-primary-container: #21005D;
-    
+
     --md-sys-color-secondary: #625B71;
     --md-sys-color-on-secondary: #FFFFFF;
     --md-sys-color-secondary-container: #E8DEF8;
     --md-sys-color-on-secondary-container: #1D192B;
-    
+
     --md-sys-color-surface: #FFFBFE;
     --md-sys-color-surface-dim: #DED8E1;
     --md-sys-color-surface-bright: #FFFBFE;
@@ -40,17 +40,17 @@
     --md-sys-color-surface-variant: #E7E0EC;
     --md-sys-color-on-surface: #1C1B1F;
     --md-sys-color-on-surface-variant: #49454F;
-    
+
     --md-sys-color-background: #FFFBFE;
     --md-sys-color-on-background: #1C1B1F;
-    
+
     --md-sys-color-outline: #79747E;
     --md-sys-color-outline-variant: #CAC4D0;
-    
+
     /* Minimal shadows for interactive states only */
     --md-sys-elevation-1: 0 1px 3px 1px rgba(0, 0, 0, 0.05);
     --md-sys-elevation-2: 0 2px 6px 2px rgba(0, 0, 0, 0.05);
-    
+
     /* Typography */
     --md-sys-typescale-headline-large: 32px;
     --md-sys-typescale-headline-medium: 28px;
@@ -60,7 +60,7 @@
     --md-sys-typescale-body-medium: 14px;
     --md-sys-typescale-body-small: 12px;
     --md-sys-typescale-label-large: 14px;
-    
+
     /* Shape */
     --md-sys-shape-corner-small: 8px;
     --md-sys-shape-corner-medium: 12px;
@@ -280,23 +280,23 @@ main {
     main {
         grid-template-columns: 1fr;
     }
-    
+
     /* Hide the title on mobile */
     header h1 {
         display: none;
     }
-    
+
     header {
         padding: 0;
         margin-bottom: 12px;
     }
-    
+
     /* Reorder: search controls, now playing, track list */
     main {
         display: flex;
         flex-direction: column;
     }
-    
+
     /* Now playing card comes first (after header) */
     .player-section {
         order: 1;
@@ -304,60 +304,61 @@ main {
         margin-bottom: 12px;
         padding: 16px;
     }
-    
+
     /* Track list comes second */
     .track-list {
         order: 2;
     }
-    
-    /* Hide lyrics on mobile to save space */
+
+    /* Compact lyrics on mobile */
     .lyrics-container {
-        display: none;
+        max-height: 200px;
+        padding: 12px;
     }
-    
+
     /* Make now playing more compact on mobile */
     .now-playing {
         margin-bottom: 16px;
         padding: 12px;
         min-height: 60px;
     }
-    
+
     .now-playing-title {
         font-size: var(--md-sys-typescale-title-medium);
     }
-    
+
     .now-playing-artist {
         font-size: var(--md-sys-typescale-body-small);
     }
-    
+
     /* Adjust track list height for mobile */
     .clusterize-scroll {
         height: calc(100vh - 380px);
         min-height: 300px;
     }
-    
+
     /* Make search bar more compact on mobile */
     .search-bar {
         height: 48px;
         padding: 0 12px;
         gap: 8px;
     }
-    
+
     .icon-btn {
         width: 40px;
         height: 40px;
         border-radius: 20px;
     }
-    
+
     .icon-btn-icon {
         width: 20px;
         height: 20px;
     }
-    
+
     #app {
         padding: 12px;
     }
-    
+
     /* Adjust menu position on mobile */
     .menu {
         right: 0;
@@ -372,11 +373,15 @@ main {
 }
 
 .clusterize-scroll {
-    height: 600px;         /* initial height */
-    min-height: 200px;     /* minimum height */
-    max-height: 90vh;      /* maximum height, optional */
+    height: 600px;
+    /* initial height */
+    min-height: 200px;
+    /* minimum height */
+    max-height: 90vh;
+    /* maximum height, optional */
     overflow: auto;
-    resize: vertical;      /* allow user to resize vertically */
+    resize: vertical;
+    /* allow user to resize vertically */
 }
 
 .track-item {
@@ -551,10 +556,13 @@ main {
 }
 
 @keyframes pulse {
-    0%, 100% {
+
+    0%,
+    100% {
         opacity: 1;
         transform: translateY(-50%) scale(1);
     }
+
     50% {
         opacity: 0.6;
         transform: translateY(-50%) scale(1.3);
@@ -749,6 +757,38 @@ main {
 
 .lyrics-error {
     opacity: 0.7;
+}
+
+.lyrics-manual-search {
+    text-align: center;
+}
+
+.lyrics-manual-search .lyrics-error {
+    padding-bottom: 8px;
+}
+
+.lyrics-search-form {
+    display: flex;
+    gap: 8px;
+    margin-top: 8px;
+}
+
+.lyrics-search-input {
+    flex: 1;
+    padding: 10px 14px;
+    border: 1px solid var(--md-sys-color-outline-variant);
+    border-radius: var(--md-sys-shape-corner-small);
+    background: var(--md-sys-color-surface-container-lowest);
+    color: var(--md-sys-color-on-surface);
+    font-size: var(--md-sys-typescale-body-medium);
+    font-family: inherit;
+    outline: none;
+    transition: border-color 0.2s;
+}
+
+.lyrics-search-input:focus {
+    border-color: var(--md-sys-color-primary);
+    box-shadow: 0 0 0 1px var(--md-sys-color-primary);
 }
 
 .lyrics-plain {

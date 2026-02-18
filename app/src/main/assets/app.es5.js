@@ -212,8 +212,8 @@ function generateRows(songList) {
         var duration = formatDuration(song.duration);
         rows.push(
             '<div class="track-item" data-index="' + i + '">' +
-                '<div class="track-title">' + escapeHtml(song.title) + '</div>' +
-                '<div class="track-info">' + escapeHtml(song.artist) + ' \u2022 ' + escapeHtml(song.album) + ' \u2022 ' + duration + '</div>' +
+            '<div class="track-title">' + escapeHtml(song.title) + '</div>' +
+            '<div class="track-info">' + escapeHtml(song.artist) + ' \u2022 ' + escapeHtml(song.album) + ' \u2022 ' + duration + '</div>' +
             '</div>'
         );
     }
@@ -415,57 +415,134 @@ function loadLyrics(song) {
     document.getElementById('lyrics-container').innerHTML = '<div class="lyrics-loading">Loading lyrics...</div>';
 
     var duration = Math.floor(song.duration / 1000);
-    var url = 'https://lrclib.net/api/get?artist_name=' + encodeURIComponent(song.artist) +
-              '&track_name=' + encodeURIComponent(song.title) +
-              '&duration=' + duration;
+
+    // Attempt 1: exact match with title + artist + duration
+    var exactUrl = 'https://lrclib.net/api/get?artist_name=' + encodeURIComponent(song.artist) +
+        '&track_name=' + encodeURIComponent(song.title) +
+        '&duration=' + duration;
+
+    var xhr = new XMLHttpRequest();
+    xhr.open('GET', exactUrl);
+    xhr.onload = function () {
+        if (xhr.status >= 200 && xhr.status < 300) {
+            try {
+                var data = JSON.parse(xhr.responseText);
+                if (data.syncedLyrics || data.plainLyrics) {
+                    applyLyricsData(data);
+                    return;
+                }
+            } catch (e) { /* parse error, fall through */ }
+        }
+
+        // Attempt 2: search with album + artist
+        if (song.album) {
+            var searchUrl = 'https://lrclib.net/api/search?artist_name=' + encodeURIComponent(song.artist) +
+                '&album_name=' + encodeURIComponent(song.album);
+
+            var xhr2 = new XMLHttpRequest();
+            xhr2.open('GET', searchUrl);
+            xhr2.onload = function () {
+                if (xhr2.status >= 200 && xhr2.status < 300) {
+                    try {
+                        var results = JSON.parse(xhr2.responseText);
+                        for (var i = 0; i < results.length; i++) {
+                            if (results[i].syncedLyrics || results[i].plainLyrics) {
+                                applyLyricsData(results[i]);
+                                return;
+                            }
+                        }
+                    } catch (e) { /* parse error, fall through */ }
+                }
+                // No results — show manual search
+                showManualLyricsSearch(song);
+            };
+            xhr2.onerror = function () {
+                showManualLyricsSearch(song);
+            };
+            xhr2.send();
+        } else {
+            // No album to search — show manual search
+            showManualLyricsSearch(song);
+        }
+    };
+    xhr.onerror = function () {
+        showManualLyricsSearch(song);
+    };
+    xhr.send();
+}
+
+function applyLyricsData(data) {
+    if (data.syncedLyrics) {
+        lyrics = parseSyncedLyrics(data.syncedLyrics);
+    } else {
+        lyrics = [];
+    }
+
+    plainLyricsText = data.plainLyrics || '';
+
+    displayLyrics();
+
+    if (lyricsMode === 'synced' && lyrics.length > 0 && !player.paused) {
+        startLyricsSync();
+    }
+}
+
+function showManualLyricsSearch(song) {
+    lyrics = [];
+    plainLyricsText = '';
+
+    var defaultQuery = song ? song.artist + ' ' + song.title : '';
+    var container = document.getElementById('lyrics-container');
+    container.innerHTML =
+        '<div class="lyrics-manual-search">' +
+        '<div class="lyrics-error">No lyrics found</div>' +
+        '<div class="lyrics-search-form">' +
+        '<input type="text" class="lyrics-search-input" id="lyrics-search-input" placeholder="Search for lyrics...">' +
+        '<button class="lyrics-search-btn" id="lyrics-search-btn">Search</button>' +
+        '</div>' +
+        '</div>';
+
+    var searchInput = document.getElementById('lyrics-search-input');
+    var searchBtn = document.getElementById('lyrics-search-btn');
+    searchInput.value = defaultQuery;
+
+    searchBtn.addEventListener('click', function () {
+        searchLyricsManual(searchInput.value);
+    });
+    searchInput.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter' || e.keyCode === 13) {
+            searchLyricsManual(searchInput.value);
+        }
+    });
+}
+
+function searchLyricsManual(query) {
+    var trimmed = query.replace(/^\s+|\s+$/g, '');
+    if (!trimmed) return;
+
+    document.getElementById('lyrics-container').innerHTML = '<div class="lyrics-loading">Searching...</div>';
+
+    var url = 'https://lrclib.net/api/search?q=' + encodeURIComponent(trimmed);
 
     var xhr = new XMLHttpRequest();
     xhr.open('GET', url);
     xhr.onload = function () {
-        if (xhr.status === 404) {
-            document.getElementById('lyrics-container').innerHTML = '<div class="lyrics-error">No lyrics found</div>';
-            lyrics = [];
-            plainLyricsText = '';
-            return;
+        if (xhr.status >= 200 && xhr.status < 300) {
+            try {
+                var results = JSON.parse(xhr.responseText);
+                for (var i = 0; i < results.length; i++) {
+                    if (results[i].syncedLyrics || results[i].plainLyrics) {
+                        applyLyricsData(results[i]);
+                        return;
+                    }
+                }
+            } catch (e) { /* parse error, fall through */ }
         }
-
-        if (xhr.status < 200 || xhr.status >= 300) {
-            document.getElementById('lyrics-container').innerHTML = '<div class="lyrics-error">Failed to load lyrics</div>';
-            lyrics = [];
-            plainLyricsText = '';
-            return;
-        }
-
-        try {
-            var data = JSON.parse(xhr.responseText);
-
-            // Parse synced lyrics if available
-            if (data.syncedLyrics) {
-                lyrics = parseSyncedLyrics(data.syncedLyrics);
-            } else {
-                lyrics = [];
-            }
-
-            // Store plain lyrics if available
-            plainLyricsText = data.plainLyrics || '';
-
-            displayLyrics();
-
-            if (lyricsMode === 'synced' && lyrics.length > 0 && !player.paused) {
-                startLyricsSync();
-            }
-        } catch (e) {
-            console.error('Failed to parse lyrics:', e);
-            document.getElementById('lyrics-container').innerHTML = '<div class="lyrics-error">Failed to load lyrics</div>';
-            lyrics = [];
-            plainLyricsText = '';
-        }
+        // Still no results — show manual search again
+        showManualLyricsSearch(currentSong);
     };
     xhr.onerror = function () {
-        console.error('Failed to load lyrics: network error');
-        document.getElementById('lyrics-container').innerHTML = '<div class="lyrics-error">Failed to load lyrics</div>';
-        lyrics = [];
-        plainLyricsText = '';
+        showManualLyricsSearch(currentSong);
     };
     xhr.send();
 }
