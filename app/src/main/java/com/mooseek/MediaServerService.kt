@@ -263,23 +263,29 @@ class MediaServerService : Service() {
             val title = params["title"]?.firstOrNull() ?: return newFixedLengthResponse(
                 Response.Status.BAD_REQUEST, "text/plain", "Missing title parameter"
             )
-            val apiKey = params["apiKey"]?.firstOrNull() ?: return newFixedLengthResponse(
-                Response.Status.BAD_REQUEST, "text/plain", "Missing apiKey parameter"
-            )
+            val duration = params["duration"]?.firstOrNull()
             
             return runBlocking {
                 try {
-                    val url = "https://api.musixmatch.com/ws/1.1/matcher.subtitle.get?" +
-                            "q_track=$title&q_artist=$artist&apikey=$apiKey&format=json"
+                    var url = "https://lrclib.net/api/get?artist_name=${java.net.URLEncoder.encode(artist, "UTF-8")}" +
+                            "&track_name=${java.net.URLEncoder.encode(title, "UTF-8")}"
+                    
+                    if (duration != null) {
+                        url += "&duration=$duration"
+                    }
                     
                     val request = Request.Builder().url(url).build()
                     val response = okHttpClient.newCall(request).execute()
-                    val body = response.body?.string() ?: "{}"
                     
-                    newFixedLengthResponse(Response.Status.OK, "application/json", body)
+                    if (response.code == 404) {
+                        newFixedLengthResponse(Response.Status.NOT_FOUND, "application/json", "{\"error\":\"No lyrics found\"}")
+                    } else {
+                        val body = response.body?.string() ?: "{}"
+                        newFixedLengthResponse(Response.Status.OK, "application/json", body)
+                    }
                 } catch (e: Exception) {
                     sendLog("Error fetching lyrics: ${e.message}")
-                    newFixedLengthResponse(Response.Status.INTERNAL_ERROR, "text/plain", "Error: ${e.message}")
+                    newFixedLengthResponse(Response.Status.INTERNAL_ERROR, "application/json", "{\"error\":\"${e.message}\"}")
                 }
             }
         }

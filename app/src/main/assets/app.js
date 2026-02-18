@@ -4,10 +4,12 @@ let currentSong = null;
 let player = null;
 let clusterize = null;
 let lyrics = [];
+let plainLyricsText = '';
 let lyricsInterval = null;
 let shuffleEnabled = false;
 let repeatMode = 'off'; // 'off', 'all', 'one'
 let isSeeking = false;
+let lyricsMode = 'synced'; // 'off', 'synced', 'plain'
 
 document.addEventListener('DOMContentLoaded', async () => {
     // Initialize audio element
@@ -64,12 +66,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     player.addEventListener('timeupdate', updateProgress);
     player.addEventListener('loadedmetadata', updateProgress);
 
-    // Load saved API key
-    const savedApiKey = localStorage.getItem('musixmatchApiKey');
-    if (savedApiKey) {
-        document.getElementById('apiKey').value = savedApiKey;
-    }
-
     // Load songs
     await loadSongs();
 
@@ -93,7 +89,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('search').addEventListener('input', handleSearch);
     document.getElementById('sort-btn').addEventListener('click', toggleSortMenu);
     document.getElementById('settings-btn').addEventListener('click', openSettings);
-    document.getElementById('save-settings').addEventListener('click', saveSettings);
     document.getElementById('close-settings').addEventListener('click', closeSettings);
     document.getElementById('shuffle-btn').addEventListener('click', toggleShuffle);
     document.getElementById('repeat-btn').addEventListener('click', toggleRepeat);
@@ -101,6 +96,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('next-btn').addEventListener('click', playNext);
     document.getElementById('clear-search').addEventListener('click', clearSearch);
     document.getElementById('play-pause-btn').addEventListener('click', togglePlayPause);
+    
+    // Lyrics mode selector
+    document.querySelectorAll('.lyrics-mode-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const mode = this.dataset.mode;
+            setLyricsMode(mode);
+        });
+    });
     
     // Sort menu items
     document.querySelectorAll('.menu-item').forEach(item => {
@@ -123,7 +126,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Player events
     player.addEventListener('play', () => {
         updatePlayPauseButton(true);
-        if (currentSong) {
+        if (currentSong && lyricsMode !== 'off') {
             loadLyrics(currentSong);
         }
     });
@@ -183,6 +186,10 @@ function playSong(song) {
     player.load();
     player.play();
     updateNowPlaying(song);
+    
+    if (lyricsMode !== 'off') {
+        loadLyrics(song);
+    }
 }
 
 function updateNowPlaying(song) {
@@ -301,42 +308,64 @@ function updateActiveTrack(index) {
 
 async function loadLyrics(song) {
     clearInterval(lyricsInterval);
-    document.getElementById('lyrics-container').innerHTML = 'Loading lyrics...';
-
-    const apiKey = localStorage.getItem('musixmatchApiKey');
-    if (!apiKey) {
-        document.getElementById('lyrics-container').innerHTML = 'Please set MusixMatch API key in settings';
+    
+    if (lyricsMode === 'off') {
+        document.getElementById('lyrics-container').innerHTML = '';
         return;
     }
+    
+    document.getElementById('lyrics-container').innerHTML = '<div class="lyrics-loading">Loading lyrics...</div>';
 
     try {
-        const response = await fetch(`/lyrics?artist=${encodeURIComponent(song.artist)}&title=${encodeURIComponent(song.title)}&apiKey=${apiKey}`);
+        const duration = Math.floor(song.duration / 1000);
+        const response = await fetch(`/lyrics?artist=${encodeURIComponent(song.artist)}&title=${encodeURIComponent(song.title)}&duration=${duration}`);
         const data = await response.json();
 
-        if (data.message && data.message.body && data.message.body.subtitle) {
-            lyrics = parseLyrics(data.message.body.subtitle.subtitle_body);
-            displayLyrics();
-            startLyricsSync();
+        if (data.error) {
+            document.getElementById('lyrics-container').innerHTML = '<div class="lyrics-error">No lyrics found</div>';
+            lyrics = [];
+            plainLyricsText = '';
+            return;
+        }
+
+        // Parse synced lyrics if available
+        if (data.syncedLyrics) {
+            lyrics = parseSyncedLyrics(data.syncedLyrics);
         } else {
-            document.getElementById('lyrics-container').innerHTML = 'No lyrics found';
+            lyrics = [];
+        }
+        
+        // Store plain lyrics if available
+        plainLyricsText = data.plainLyrics || '';
+        
+        displayLyrics();
+        
+        if (lyricsMode === 'synced' && lyrics.length > 0) {
+            startLyricsSync();
         }
     } catch (error) {
         console.error('Failed to load lyrics:', error);
-        document.getElementById('lyrics-container').innerHTML = 'Failed to load lyrics';
+        document.getElementById('lyrics-container').innerHTML = '<div class="lyrics-error">Failed to load lyrics</div>';
+        lyrics = [];
+        plainLyricsText = '';
     }
 }
 
-function parseLyrics(lyricsText) {
+function parseSyncedLyrics(lyricsText) {
+    if (!lyricsText) return [];
+    
     const lines = lyricsText.split('\n');
     const parsed = [];
 
     for (const line of lines) {
-        const match = line.match(/\[(\d{2}):(\d{2}\.\d{2})\](.*)/);
+        // Match LRC format: [MM:SS.XX] or [MM:SS.XXX]
+        const match = line.match(/\[(\d{2}):(\d{2})\.(\d{2,3})\](.*)/);
         if (match) {
             const minutes = parseInt(match[1]);
-            const seconds = parseFloat(match[2]);
-            const time = minutes * 60 + seconds;
-            const text = match[3].trim();
+            const seconds = parseInt(match[2]);
+            const centiseconds = match[3].length === 2 ? parseInt(match[3]) : Math.floor(parseInt(match[3]) / 10);
+            const time = minutes * 60 + seconds + centiseconds / 100;
+            const text = match[4].trim();
             parsed.push({ time, text });
         }
     }
@@ -346,9 +375,27 @@ function parseLyrics(lyricsText) {
 
 function displayLyrics() {
     const container = document.getElementById('lyrics-container');
-    container.innerHTML = lyrics.map((line, index) =>
-        `<div class="lyrics-line" data-index="${index}">${line.text || '♪'}</div>`
-    ).join('');
+    
+    if (lyricsMode === 'off') {
+        container.innerHTML = '';
+        return;
+    }
+    
+    if (lyricsMode === 'synced') {
+        if (lyrics.length === 0) {
+            container.innerHTML = '<div class="lyrics-error">No synced lyrics available</div>';
+            return;
+        }
+        container.innerHTML = lyrics.map((line, index) =>
+            `<div class="lyrics-line" data-index="${index}">${escapeHtml(line.text) || '♪'}</div>`
+        ).join('');
+    } else if (lyricsMode === 'plain') {
+        if (!plainLyricsText) {
+            container.innerHTML = '<div class="lyrics-error">No plain lyrics available</div>';
+            return;
+        }
+        container.innerHTML = `<div class="lyrics-plain">${escapeHtml(plainLyricsText)}</div>`;
+    }
 }
 
 function startLyricsSync() {
@@ -441,18 +488,33 @@ function updateTrackList() {
     }
 }
 
+function setLyricsMode(mode) {
+    lyricsMode = mode;
+    
+    // Update selector state
+    const selector = document.querySelector('.lyrics-mode-selector');
+    selector.setAttribute('data-active', mode);
+    
+    // Update button states
+    document.querySelectorAll('.lyrics-mode-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.mode === mode);
+    });
+    
+    // Update display
+    clearInterval(lyricsInterval);
+    displayLyrics();
+    
+    if (mode === 'synced' && lyrics.length > 0 && !player.paused) {
+        startLyricsSync();
+    }
+}
+
 function openSettings() {
     document.getElementById('settings-modal').style.display = 'block';
 }
 
 function closeSettings() {
     document.getElementById('settings-modal').style.display = 'none';
-}
-
-function saveSettings() {
-    const apiKey = document.getElementById('apiKey').value;
-    localStorage.setItem('musixmatchApiKey', apiKey);
-    closeSettings();
 }
 
 function formatDuration(ms) {

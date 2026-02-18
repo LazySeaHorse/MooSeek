@@ -84,16 +84,21 @@
                     </button>
                 </div>
                 
-                <div id="lyrics-container" class="lyrics-container"></div>
+                <div class="lyrics-wrapper">
+                    <div class="lyrics-mode-selector" data-active="synced">
+                        <button class="lyrics-mode-btn" data-mode="off">Off</button>
+                        <button class="lyrics-mode-btn active" data-mode="synced">Synced</button>
+                        <button class="lyrics-mode-btn" data-mode="plain">Plain</button>
+                    </div>
+                    <div id="lyrics-container" class="lyrics-container"></div>
+                </div>
             </div>
         </main>
 
         <div id="settings-modal" class="modal">
             <div class="modal-content">
                 <h2>Settings</h2>
-                <label for="apiKey">MusixMatch API Key:</label>
-                <input type="text" id="apiKey" placeholder="Enter your API key">
-                <button id="save-settings">Save</button>
+                <p>hehe lol</p>
                 <button id="close-settings">Close</button>
             </div>
         </div>
