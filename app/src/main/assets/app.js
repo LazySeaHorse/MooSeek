@@ -9,7 +9,7 @@ let lyricsInterval = null;
 let shuffleEnabled = false;
 let repeatMode = 'off'; // 'off', 'all', 'one'
 let isSeeking = false;
-let lyricsMode = 'synced'; // 'off', 'synced', 'plain'
+let lyricsMode = 'off'; // 'off', 'synced', 'plain'
 
 document.addEventListener('DOMContentLoaded', async () => {
     // Initialize audio element
@@ -126,9 +126,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Player events
     player.addEventListener('play', () => {
         updatePlayPauseButton(true);
-        if (currentSong && lyricsMode !== 'off') {
-            loadLyrics(currentSong);
-        }
+        // Don't auto-load lyrics on play
     });
 
     player.addEventListener('pause', () => {
@@ -187,9 +185,19 @@ function playSong(song) {
     player.play();
     updateNowPlaying(song);
     
-    if (lyricsMode !== 'off') {
-        loadLyrics(song);
-    }
+    // Clear lyrics when changing songs
+    lyrics = [];
+    plainLyricsText = '';
+    clearInterval(lyricsInterval);
+    
+    // Reset lyrics display to off state
+    lyricsMode = 'off';
+    const selector = document.querySelector('.lyrics-mode-selector');
+    selector.setAttribute('data-active', 'off');
+    document.querySelectorAll('.lyrics-mode-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.mode === 'off');
+    });
+    document.getElementById('lyrics-container').innerHTML = '';
 }
 
 function updateNowPlaying(song) {
@@ -309,24 +317,27 @@ function updateActiveTrack(index) {
 async function loadLyrics(song) {
     clearInterval(lyricsInterval);
     
-    if (lyricsMode === 'off') {
-        document.getElementById('lyrics-container').innerHTML = '';
-        return;
-    }
-    
+    // Show loading state
     document.getElementById('lyrics-container').innerHTML = '<div class="lyrics-loading">Loading lyrics...</div>';
 
     try {
         const duration = Math.floor(song.duration / 1000);
-        const response = await fetch(`/lyrics?artist=${encodeURIComponent(song.artist)}&title=${encodeURIComponent(song.title)}&duration=${duration}`);
-        const data = await response.json();
-
-        if (data.error) {
-            document.getElementById('lyrics-container').innerHTML = '<div class="lyrics-error">No lyrics found</div>';
+        const url = `https://lrclib.net/api/get?artist_name=${encodeURIComponent(song.artist)}&track_name=${encodeURIComponent(song.title)}&duration=${duration}`;
+        
+        const response = await fetch(url);
+        
+        if (!response.ok) {
+            if (response.status === 404) {
+                document.getElementById('lyrics-container').innerHTML = '<div class="lyrics-error">No lyrics found</div>';
+            } else {
+                document.getElementById('lyrics-container').innerHTML = '<div class="lyrics-error">Failed to load lyrics</div>';
+            }
             lyrics = [];
             plainLyricsText = '';
             return;
         }
+        
+        const data = await response.json();
 
         // Parse synced lyrics if available
         if (data.syncedLyrics) {
@@ -340,7 +351,7 @@ async function loadLyrics(song) {
         
         displayLyrics();
         
-        if (lyricsMode === 'synced' && lyrics.length > 0) {
+        if (lyricsMode === 'synced' && lyrics.length > 0 && !player.paused) {
             startLyricsSync();
         }
     } catch (error) {
@@ -383,7 +394,12 @@ function displayLyrics() {
     
     if (lyricsMode === 'synced') {
         if (lyrics.length === 0) {
-            container.innerHTML = '<div class="lyrics-error">No synced lyrics available</div>';
+            // If no synced lyrics but plain lyrics exist, show plain lyrics with a note
+            if (plainLyricsText) {
+                container.innerHTML = `<div class="lyrics-fallback-note">Synced lyrics not available. Showing plain lyrics:</div><div class="lyrics-plain">${escapeHtml(plainLyricsText)}</div>`;
+            } else {
+                container.innerHTML = '<div class="lyrics-error">No synced lyrics available</div>';
+            }
             return;
         }
         container.innerHTML = lyrics.map((line, index) =>
@@ -489,6 +505,7 @@ function updateTrackList() {
 }
 
 function setLyricsMode(mode) {
+    const previousMode = lyricsMode;
     lyricsMode = mode;
     
     // Update selector state
@@ -500,12 +517,19 @@ function setLyricsMode(mode) {
         btn.classList.toggle('active', btn.dataset.mode === mode);
     });
     
-    // Update display
+    // Clear interval
     clearInterval(lyricsInterval);
-    displayLyrics();
     
-    if (mode === 'synced' && lyrics.length > 0 && !player.paused) {
-        startLyricsSync();
+    // If switching from off to synced/plain, fetch lyrics
+    if (previousMode === 'off' && mode !== 'off' && currentSong) {
+        loadLyrics(currentSong);
+    } else {
+        // Just update display with existing data
+        displayLyrics();
+        
+        if (mode === 'synced' && lyrics.length > 0 && !player.paused) {
+            startLyricsSync();
+        }
     }
 }
 

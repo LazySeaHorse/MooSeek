@@ -727,6 +727,18 @@ main {
     display: none;
 }
 
+.lyrics-fallback-note {
+    text-align: center;
+    padding: 12px 16px;
+    margin-bottom: 12px;
+    color: var(--md-sys-color-on-surface-variant);
+    font-size: var(--md-sys-typescale-body-small);
+    font-style: italic;
+    opacity: 0.8;
+    background: var(--md-sys-color-surface-container);
+    border-radius: var(--md-sys-shape-corner-small);
+}
+
 .lyrics-loading,
 .lyrics-error {
     text-align: center;

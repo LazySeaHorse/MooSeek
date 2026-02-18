@@ -126,7 +126,6 @@ class MediaServerService : Service() {
                 uri == "/" -> serveAsset("index.html", "text/html")
                 uri == "/list" -> handleList()
                 uri.startsWith("/stream/") -> handleStream(uri.substring(8), session)
-                uri == "/lyrics" -> handleLyrics(session)
                 else -> {
                     // Serve static assets (js, css, svg, etc.) from the assets folder
                     val filename = uri.trimStart('/')
@@ -252,41 +251,6 @@ class MediaServerService : Service() {
                 start to end
             } else {
                 null
-            }
-        }
-        
-        private fun handleLyrics(session: IHTTPSession): Response {
-            val params = session.parameters
-            val artist = params["artist"]?.firstOrNull() ?: return newFixedLengthResponse(
-                Response.Status.BAD_REQUEST, "text/plain", "Missing artist parameter"
-            )
-            val title = params["title"]?.firstOrNull() ?: return newFixedLengthResponse(
-                Response.Status.BAD_REQUEST, "text/plain", "Missing title parameter"
-            )
-            val duration = params["duration"]?.firstOrNull()
-            
-            return runBlocking {
-                try {
-                    var url = "https://lrclib.net/api/get?artist_name=${java.net.URLEncoder.encode(artist, "UTF-8")}" +
-                            "&track_name=${java.net.URLEncoder.encode(title, "UTF-8")}"
-                    
-                    if (duration != null) {
-                        url += "&duration=$duration"
-                    }
-                    
-                    val request = Request.Builder().url(url).build()
-                    val response = okHttpClient.newCall(request).execute()
-                    
-                    if (response.code == 404) {
-                        newFixedLengthResponse(Response.Status.NOT_FOUND, "application/json", "{\"error\":\"No lyrics found\"}")
-                    } else {
-                        val body = response.body?.string() ?: "{}"
-                        newFixedLengthResponse(Response.Status.OK, "application/json", body)
-                    }
-                } catch (e: Exception) {
-                    sendLog("Error fetching lyrics: ${e.message}")
-                    newFixedLengthResponse(Response.Status.INTERNAL_ERROR, "application/json", "{\"error\":\"${e.message}\"}")
-                }
             }
         }
     }
