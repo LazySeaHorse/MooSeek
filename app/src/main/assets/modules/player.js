@@ -3,6 +3,7 @@
  */
 
 import { updatePlayPauseButton, updateActiveTrack } from './ui.js';
+import { cycleTheme } from './theme.js';
 
 export const playerState = {
     currentSong: null,
@@ -20,6 +21,10 @@ export function initPlayer() {
 
 export function playSong(song, filteredSongs) {
     playerState.currentSong = song;
+    
+    // Cycle to next theme when a new song plays
+    cycleTheme();
+    
     // For dummy songs, use a silent data URL so the player doesn't error
     if (song.path.startsWith('dummy')) {
         // Minimal WAV file (silent, ~5 seconds)

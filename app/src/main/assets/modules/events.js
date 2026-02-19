@@ -11,8 +11,12 @@ import { isMobile } from './utils.js';
 import { playerState } from './player.js';
 import { trackListState } from './trackList.js';
 import { lyricsState } from './lyrics.js';
+import { applyTheme } from './theme.js';
 
 export async function initializeEventListeners() {
+    // Initialize theme system with purple (index 0)
+    applyTheme(0);
+    
     // Search
     document.getElementById('search').addEventListener('input', handleSearch);
     document.getElementById('clear-search').addEventListener('click', clearSearch);
