@@ -1,75 +1,46 @@
 package com.mooseek
 
 import android.Manifest
-import android.content.BroadcastReceiver
-import android.content.Context
-import android.content.Intent
-import android.content.IntentFilter
 import android.content.pm.PackageManager
-import android.net.wifi.WifiManager
 import android.os.Build
 import android.os.Bundle
-import android.widget.ScrollView
-import android.widget.TextView
-import androidx.appcompat.app.AppCompatActivity
-import androidx.core.app.ActivityCompat
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.layout.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Modifier
 import androidx.core.content.ContextCompat
-import java.text.SimpleDateFormat
-import java.util.*
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.mooseek.ui.screens.LibraryScreen
+import com.mooseek.ui.screens.NowPlayingScreen
+import com.mooseek.ui.components.BottomPlayerBar
+import com.mooseek.ui.theme.MooSeekTheme
+import com.mooseek.viewmodels.MusicViewModel
 
-class MainActivity : AppCompatActivity() {
+class MainActivity : ComponentActivity() {
     
-    private lateinit var logTextView: TextView
-    private lateinit var scrollView: ScrollView
-    private val logBuilder = StringBuilder()
-    private val dateFormat = SimpleDateFormat("HH:mm:ss", Locale.getDefault())
-    
-    private val logReceiver = object : BroadcastReceiver() {
-        override fun onReceive(context: Context?, intent: Intent?) {
-            if (intent?.action == MediaServerService.ACTION_LOG) {
-                val log = intent.getStringExtra(MediaServerService.EXTRA_LOG) ?: return
-                appendLog(log)
-            }
-        }
+    private val permissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        // Permissions handled, UI will update automatically
     }
     
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
-        scrollView = ScrollView(this).apply {
-            setPadding(16, 16, 16, 16)
-        }
+        checkAndRequestPermissions()
         
-        logTextView = TextView(this).apply {
-            typeface = android.graphics.Typeface.MONOSPACE
-            textSize = 12f
-            setTextColor(android.graphics.Color.BLACK)
-        }
-        
-        scrollView.addView(logTextView)
-        setContentView(scrollView)
-        
-        if (checkPermissions()) {
-            startMediaServer()
+        setContent {
+            MooSeekTheme {
+                MusicApp()
+            }
         }
     }
     
-    override fun onStart() {
-        super.onStart()
-        val filter = IntentFilter(MediaServerService.ACTION_LOG)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            registerReceiver(logReceiver, filter, RECEIVER_NOT_EXPORTED)
-        } else {
-            registerReceiver(logReceiver, filter)
-        }
-    }
-    
-    override fun onStop() {
-        super.onStop()
-        unregisterReceiver(logReceiver)
-    }
-    
-    private fun checkPermissions(): Boolean {
+    private fun checkAndRequestPermissions() {
         val permissions = mutableListOf<String>()
         
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -88,61 +59,60 @@ class MainActivity : AppCompatActivity() {
             }
         }
         
-        return if (permissions.isNotEmpty()) {
-            ActivityCompat.requestPermissions(this, permissions.toTypedArray(), 100)
-            false
-        } else {
-            true
+        if (permissions.isNotEmpty()) {
+            permissionLauncher.launch(permissions.toTypedArray())
         }
     }
+}
+
+@Composable
+fun MusicApp(
+    viewModel: MusicViewModel = viewModel()
+) {
+    val songs by viewModel.filteredSongs.collectAsStateWithLifecycle()
+    val playbackState by viewModel.playbackState.collectAsStateWithLifecycle()
+    val searchQuery by viewModel.searchQuery.collectAsStateWithLifecycle()
     
-    override fun onRequestPermissionsResult(
-        requestCode: Int,
-        permissions: Array<out String>,
-        grantResults: IntArray
-    ) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-        if (requestCode == 100 && grantResults.all { it == PackageManager.PERMISSION_GRANTED }) {
-            startMediaServer()
-        }
-    }
+    var showNowPlaying by remember { mutableStateOf(false) }
     
-    private fun startMediaServer() {
-        val serverAddress = "http://${getIpAddress()}:8080"
-        logTextView.text = "Server running at $serverAddress\n\n"
-        
-        val serviceIntent = Intent(this, MediaServerService::class.java)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            startForegroundService(serviceIntent)
-        } else {
-            startService(serviceIntent)
-        }
-    }
-    
-    private fun getIpAddress(): String {
-        try {
-            val interfaces = java.net.NetworkInterface.getNetworkInterfaces()
-            for (intf in interfaces) {
-                val addrs = intf.inetAddresses
-                for (addr in addrs) {
-                    if (!addr.isLoopbackAddress && addr is java.net.Inet4Address && !addr.isLinkLocalAddress) {
-                        return addr.hostAddress ?: "0.0.0.0"
+    Scaffold(
+        bottomBar = {
+            BottomPlayerBar(
+                playbackState = playbackState,
+                onPlayPauseClick = {
+                    if (playbackState.isPlaying) {
+                        viewModel.pause()
+                    } else {
+                        viewModel.play()
                     }
-                }
-            }
-        } catch (ex: Exception) {
-            // Ignore
+                },
+                onBarClick = { showNowPlaying = true }
+            )
         }
-        return "0.0.0.0"
-    }
-    
-    private fun appendLog(message: String) {
-        val timestamp = dateFormat.format(Date())
-        logBuilder.append("[$timestamp] $message\n")
-        
-        runOnUiThread {
-            logTextView.text = logTextView.text.toString() + "[$timestamp] $message\n"
-            scrollView.post { scrollView.fullScroll(ScrollView.FOCUS_DOWN) }
+    ) { paddingValues ->
+        if (showNowPlaying) {
+            NowPlayingScreen(
+                playbackState = playbackState,
+                onPlayPauseClick = {
+                    if (playbackState.isPlaying) {
+                        viewModel.pause()
+                    } else {
+                        viewModel.play()
+                    }
+                },
+                onSkipNextClick = { viewModel.skipToNext() },
+                onSkipPreviousClick = { viewModel.skipToPrevious() },
+                onSeek = { position -> viewModel.seekTo(position) },
+                onBackClick = { showNowPlaying = false }
+            )
+        } else {
+            LibraryScreen(
+                songs = songs,
+                searchQuery = searchQuery,
+                onSearchQueryChange = { viewModel.updateSearchQuery(it) },
+                onSongClick = { song -> viewModel.playSong(song) },
+                modifier = Modifier.padding(paddingValues)
+            )
         }
     }
 }

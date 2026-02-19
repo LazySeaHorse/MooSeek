@@ -44,7 +44,17 @@ class MusicPlaybackService : MediaSessionService() {
         super.onStartCommand(intent, flags, startId)
         
         when (intent?.action) {
-            ACTION_PLAY -> musicPlayer.play()
+            ACTION_PLAY -> {
+                val songs = intent.getParcelableArrayListExtra<Song>(EXTRA_SONGS)
+                val startIndex = intent.getIntExtra(EXTRA_START_INDEX, 0)
+                
+                if (songs != null && songs.isNotEmpty()) {
+                    musicPlayer.setQueue(songs, startIndex)
+                    musicPlayer.play()
+                } else {
+                    musicPlayer.play()
+                }
+            }
             ACTION_PAUSE -> musicPlayer.pause()
             ACTION_NEXT -> musicPlayer.skipToNext()
             ACTION_PREVIOUS -> musicPlayer.skipToPrevious()
