@@ -308,6 +308,29 @@ main {
         padding: 12px;
     }
 
+    /* SVG background for lyrics wrapper on mobile only */
+    .lyrics-wrapper::before {
+        content: '';
+        position: absolute;
+        top: 50px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 200px;
+        height: 200px;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'%3E%3Cg fill='none' stroke='%2379747E' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' opacity='0.3'%3E%3Ccircle cx='100' cy='100' r='60'/%3E%3Cpath d='M 60 100 Q 80 70, 100 100 T 140 100'/%3E%3Cpath d='M 100 40 L 100 70'/%3E%3Cpath d='M 100 130 L 100 160'/%3E%3Cpath d='M 40 100 L 70 100'/%3E%3Cpath d='M 130 100 L 160 100'/%3E%3Ccircle cx='100' cy='100' r='8' fill='%2379747E'/%3E%3Cpath d='M 70 70 Q 100 50, 130 70' stroke-dasharray='3,3'/%3E%3Cpath d='M 70 130 Q 100 150, 130 130' stroke-dasharray='3,3'/%3E%3Cpath d='M 85 85 L 95 95 M 105 95 L 115 85'/%3E%3Cpath d='M 85 115 L 95 105 M 105 105 L 115 115'/%3E%3C/g%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: center;
+        background-size: contain;
+        pointer-events: none;
+        z-index: 0;
+        opacity: 1;
+        transition: opacity 0.3s ease;
+    }
+
+    .lyrics-wrapper.has-lyrics::before {
+        opacity: 0;
+    }
+
     /* Make search bar more compact on mobile */
     .search-bar {
         height: 48px;
@@ -638,6 +661,8 @@ main {
 
 .lyrics-wrapper {
     margin-top: 20px;
+    position: relative;
+    min-height: 300px;
 }
 
 .lyrics-mode-selector {
@@ -691,6 +716,8 @@ main {
 }
 
 .lyrics-container {
+    position: relative;
+    z-index: 1;
     max-height: 400px;
     overflow-y: auto;
     padding: 16px;
@@ -1173,9 +1200,34 @@ main {
         flex-direction: column;
         min-height: 80px;
         margin-bottom: 16px;
+        position: relative;
+    }
+
+    .fullscreen-lyrics-wrapper::before {
+        content: '';
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 250px;
+        height: 250px;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'%3E%3Cg fill='none' stroke='%2379747E' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' opacity='0.3'%3E%3Ccircle cx='100' cy='100' r='60'/%3E%3Cpath d='M 60 100 Q 80 70, 100 100 T 140 100'/%3E%3Cpath d='M 100 40 L 100 70'/%3E%3Cpath d='M 100 130 L 100 160'/%3E%3Cpath d='M 40 100 L 70 100'/%3E%3Cpath d='M 130 100 L 160 100'/%3E%3Ccircle cx='100' cy='100' r='8' fill='%2379747E'/%3E%3Cpath d='M 70 70 Q 100 50, 130 70' stroke-dasharray='3,3'/%3E%3Cpath d='M 70 130 Q 100 150, 130 130' stroke-dasharray='3,3'/%3E%3Cpath d='M 85 85 L 95 95 M 105 95 L 115 85'/%3E%3Cpath d='M 85 115 L 95 105 M 105 105 L 115 115'/%3E%3C/g%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: center;
+        background-size: contain;
+        pointer-events: none;
+        z-index: 0;
+        opacity: 1;
+        transition: opacity 0.3s ease;
+    }
+
+    .fullscreen-lyrics-wrapper.has-lyrics::before {
+        opacity: 0;
     }
 
     .fullscreen-lyrics-wrapper .lyrics-container {
+        position: relative;
+        z-index: 1;
         flex: 1;
         max-height: none;
         min-height: 80px;

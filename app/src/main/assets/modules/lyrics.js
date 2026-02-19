@@ -26,6 +26,12 @@ export function clearLyricsState() {
     document.getElementById('lyrics-container').innerHTML = '';
     const fsLyricsContainer = document.getElementById('fullscreen-lyrics-container');
     if (fsLyricsContainer) fsLyricsContainer.innerHTML = '';
+    
+    // Remove has-lyrics class to show SVG
+    const wrapper = document.querySelector('.lyrics-wrapper');
+    const fsWrapper = document.querySelector('.fullscreen-lyrics-wrapper');
+    if (wrapper) wrapper.classList.remove('has-lyrics');
+    if (fsWrapper) fsWrapper.classList.remove('has-lyrics');
 }
 
 export async function loadLyrics(song) {
@@ -106,6 +112,12 @@ function showManualLyricsSearch(song) {
     const fsLyricsContainer = document.getElementById('fullscreen-lyrics-container');
     if (fsLyricsContainer) fsLyricsContainer.innerHTML = searchHtml;
 
+    // Add has-lyrics class to hide SVG when showing search
+    const wrapper = document.querySelector('.lyrics-wrapper');
+    const fsWrapper = document.querySelector('.fullscreen-lyrics-wrapper');
+    if (wrapper) wrapper.classList.add('has-lyrics');
+    if (fsWrapper) fsWrapper.classList.add('has-lyrics');
+
     const searchInput = document.getElementById('lyrics-search-input');
     const searchBtn = document.getElementById('lyrics-search-btn');
     searchInput.value = defaultQuery;
@@ -168,10 +180,14 @@ function parseSyncedLyrics(lyricsText) {
 function displayLyrics() {
     const container = document.getElementById('lyrics-container');
     const fsContainer = document.getElementById('fullscreen-lyrics-container');
+    const wrapper = document.querySelector('.lyrics-wrapper');
+    const fsWrapper = document.querySelector('.fullscreen-lyrics-wrapper');
 
     if (lyricsState.lyricsMode === 'off') {
         container.innerHTML = '';
         if (fsContainer) fsContainer.innerHTML = '';
+        if (wrapper) wrapper.classList.remove('has-lyrics');
+        if (fsWrapper) fsWrapper.classList.remove('has-lyrics');
         return;
     }
 
@@ -198,6 +214,15 @@ function displayLyrics() {
 
     container.innerHTML = html;
     if (fsContainer) fsContainer.innerHTML = html;
+    
+    // Add has-lyrics class when displaying lyrics
+    if (html) {
+        if (wrapper) wrapper.classList.add('has-lyrics');
+        if (fsWrapper) fsWrapper.classList.add('has-lyrics');
+    } else {
+        if (wrapper) wrapper.classList.remove('has-lyrics');
+        if (fsWrapper) fsWrapper.classList.remove('has-lyrics');
+    }
 }
 
 function startLyricsSync() {
