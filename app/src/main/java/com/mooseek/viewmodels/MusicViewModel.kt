@@ -26,7 +26,7 @@ import kotlinx.coroutines.launch
 
 class MusicViewModel(application: Application) : AndroidViewModel(application) {
     
-    private val mediaRepository = MediaRepository(application)
+    private val mediaRepository = MediaRepository(application.contentResolver)
     private val settingsRepository = SettingsRepository(application)
     private var mediaController: MediaController? = null
     private var controllerFuture: ListenableFuture<MediaController>? = null
