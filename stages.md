@@ -26,8 +26,10 @@ Build a native Android music player with:
 
 ## Implementation Stages
 
-### Stage 1: Core Playback Infrastructure ⏳
+### Stage 1: Core Playback Infrastructure ✅
 **Goal**: Set up ExoPlayer and MediaSession for audio playback
+
+**Status**: COMPLETED
 
 #### Dependencies to Add (app/build.gradle.kts)
 ```kotlin
@@ -335,18 +337,14 @@ val player = ExoPlayer.Builder(context)
 
 ---
 
-## Useful Commands
+## Build Environment
 
-```bash
-# Build and install
-./gradlew installDebug
+**IMPORTANT**: This project does NOT have a local Gradle installation. All builds are performed via GitHub Actions.
 
-# Check for errors
-./gradlew assembleDebug
-
-# Clean build
-./gradlew clean build
-```
+- No local compilation or testing
+- Push changes to trigger CI/CD pipeline
+- Review build logs on GitHub Actions for errors
+- Use getDiagnostics tool in IDE for syntax checking before pushing
 
 ---
 
