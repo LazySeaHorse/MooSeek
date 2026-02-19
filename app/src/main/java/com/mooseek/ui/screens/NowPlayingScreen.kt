@@ -22,6 +22,9 @@ fun NowPlayingScreen(
     onSkipPreviousClick: () -> Unit,
     onSeek: (Long) -> Unit,
     onBackClick: () -> Unit,
+    onShuffleClick: () -> Unit,
+    onShuffleStrategySelected: (String) -> Unit,
+    availableStrategies: List<String>,
     modifier: Modifier = Modifier
 ) {
     val currentSong = playbackState.currentSong
@@ -141,6 +144,86 @@ fun NowPlayingScreen(
                 }
                 
                 Spacer(modifier = Modifier.height(24.dp))
+                
+                // Shuffle and Repeat Controls
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceEvenly,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    var showStrategyMenu by remember { mutableStateOf(false) }
+                    
+                    // Shuffle Button with Strategy Selector
+                    Box {
+                        IconButton(
+                            onClick = { showStrategyMenu = true }
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Shuffle,
+                                contentDescription = "Shuffle",
+                                tint = if (playbackState.shuffleEnabled) {
+                                    MaterialTheme.colorScheme.primary
+                                } else {
+                                    MaterialTheme.colorScheme.onSurfaceVariant
+                                }
+                            )
+                        }
+                        
+                        DropdownMenu(
+                            expanded = showStrategyMenu,
+                            onDismissRequest = { showStrategyMenu = false }
+                        ) {
+                            DropdownMenuItem(
+                                text = { 
+                                    Text(if (playbackState.shuffleEnabled) "Disable Shuffle" else "Enable Shuffle")
+                                },
+                                onClick = {
+                                    onShuffleClick()
+                                    showStrategyMenu = false
+                                },
+                                leadingIcon = {
+                                    Icon(
+                                        Icons.Default.Shuffle,
+                                        contentDescription = null
+                                    )
+                                }
+                            )
+                            
+                            if (availableStrategies.isNotEmpty()) {
+                                HorizontalDivider()
+                                
+                                availableStrategies.forEach { strategy ->
+                                    DropdownMenuItem(
+                                        text = { Text(strategy) },
+                                        onClick = {
+                                            onShuffleStrategySelected(strategy)
+                                            showStrategyMenu = false
+                                        },
+                                        leadingIcon = {
+                                            if (strategy == playbackState.currentShuffleStrategy) {
+                                                Icon(
+                                                    Icons.Default.Check,
+                                                    contentDescription = null
+                                                )
+                                            }
+                                        }
+                                    )
+                                }
+                            }
+                        }
+                    }
+                    
+                    // Repeat Button (placeholder for future implementation)
+                    IconButton(onClick = { /* TODO: Implement repeat */ }) {
+                        Icon(
+                            imageVector = Icons.Default.Repeat,
+                            contentDescription = "Repeat",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+                
+                Spacer(modifier = Modifier.height(16.dp))
                 
                 // Playback Controls
                 Row(

@@ -24,8 +24,11 @@ class MusicPlaybackService : MediaSessionService() {
         const val ACTION_PAUSE = "com.mooseek.ACTION_PAUSE"
         const val ACTION_NEXT = "com.mooseek.ACTION_NEXT"
         const val ACTION_PREVIOUS = "com.mooseek.ACTION_PREVIOUS"
+        const val ACTION_TOGGLE_SHUFFLE = "com.mooseek.ACTION_TOGGLE_SHUFFLE"
+        const val ACTION_SET_SHUFFLE_STRATEGY = "com.mooseek.ACTION_SET_SHUFFLE_STRATEGY"
         const val EXTRA_SONGS = "extra_songs"
         const val EXTRA_START_INDEX = "extra_start_index"
+        const val EXTRA_STRATEGY_NAME = "extra_strategy_name"
     }
     
     override fun onCreate() {
@@ -58,6 +61,13 @@ class MusicPlaybackService : MediaSessionService() {
             ACTION_PAUSE -> musicPlayer.pause()
             ACTION_NEXT -> musicPlayer.skipToNext()
             ACTION_PREVIOUS -> musicPlayer.skipToPrevious()
+            ACTION_TOGGLE_SHUFFLE -> musicPlayer.toggleShuffle()
+            ACTION_SET_SHUFFLE_STRATEGY -> {
+                val strategyName = intent.getStringExtra(EXTRA_STRATEGY_NAME)
+                if (strategyName != null) {
+                    musicPlayer.setShuffleStrategy(strategyName)
+                }
+            }
         }
         
         return START_STICKY

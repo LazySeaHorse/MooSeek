@@ -10,7 +10,9 @@ data class PlaybackState(
     val queue: List<Song> = emptyList(),
     val currentIndex: Int = -1,
     val shuffleEnabled: Boolean = false,
-    val repeatMode: RepeatMode = RepeatMode.OFF
+    val repeatMode: RepeatMode = RepeatMode.OFF,
+    val originalQueue: List<Song> = emptyList(),
+    val currentShuffleStrategy: String = "Standard Shuffle"
 )
 
 enum class RepeatMode {

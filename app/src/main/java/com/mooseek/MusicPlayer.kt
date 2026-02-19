@@ -9,6 +9,7 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import com.mooseek.models.Song
+import com.mooseek.shuffle.ShuffleManager
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -17,6 +18,8 @@ class MusicPlayer(context: Context) {
     
     private val _playbackState = MutableStateFlow(PlaybackState())
     val playbackState: StateFlow<PlaybackState> = _playbackState.asStateFlow()
+    
+    private val shuffleManager = ShuffleManager(context)
     
     val player: ExoPlayer = ExoPlayer.Builder(context)
         .setAudioAttributes(
@@ -66,8 +69,11 @@ class MusicPlayer(context: Context) {
         
         updatePlaybackState(
             queue = songs,
+            originalQueue = songs,
             currentIndex = startIndex,
-            currentSong = songs.getOrNull(startIndex)
+            currentSong = songs.getOrNull(startIndex),
+            shuffleEnabled = shuffleManager.isShuffleEnabled(),
+            currentShuffleStrategy = shuffleManager.getCurrentStrategy().name
         )
     }
     
@@ -97,6 +103,47 @@ class MusicPlayer(context: Context) {
     
     fun getCurrentPosition(): Long = player.currentPosition
     
+    fun toggleShuffle() {
+        val currentState = _playbackState.value
+        val newShuffleState = !currentState.shuffleEnabled
+        shuffleManager.setShuffleEnabled(newShuffleState)
+        
+        if (newShuffleState) {
+            // Apply shuffle
+            val shuffledQueue = shuffleManager.applyShuffle(
+                currentState.originalQueue,
+                currentState.currentIndex
+            )
+            setQueue(shuffledQueue, 0)
+        } else {
+            // Restore original order
+            val currentSong = currentState.currentSong
+            val originalIndex = currentState.originalQueue.indexOfFirst { 
+                it.id == currentSong?.id 
+            }
+            setQueue(currentState.originalQueue, originalIndex.coerceAtLeast(0))
+        }
+        
+        updatePlaybackState(shuffleEnabled = newShuffleState)
+    }
+    
+    fun setShuffleStrategy(strategyName: String) {
+        shuffleManager.setStrategyByName(strategyName)
+        updatePlaybackState(currentShuffleStrategy = strategyName)
+        
+        // Re-apply shuffle if currently enabled
+        if (_playbackState.value.shuffleEnabled) {
+            val currentState = _playbackState.value
+            val shuffledQueue = shuffleManager.applyShuffle(
+                currentState.originalQueue,
+                currentState.currentIndex
+            )
+            setQueue(shuffledQueue, 0)
+        }
+    }
+    
+    fun getAvailableShuffleStrategies() = shuffleManager.getAvailableStrategies()
+    
     fun release() {
         player.release()
     }
@@ -107,7 +154,10 @@ class MusicPlayer(context: Context) {
         currentPosition: Long = player.currentPosition,
         duration: Long = _playbackState.value.duration,
         queue: List<Song> = _playbackState.value.queue,
-        currentIndex: Int = _playbackState.value.currentIndex
+        currentIndex: Int = _playbackState.value.currentIndex,
+        shuffleEnabled: Boolean = _playbackState.value.shuffleEnabled,
+        originalQueue: List<Song> = _playbackState.value.originalQueue,
+        currentShuffleStrategy: String = _playbackState.value.currentShuffleStrategy
     ) {
         _playbackState.value = _playbackState.value.copy(
             currentSong = currentSong,
@@ -115,7 +165,10 @@ class MusicPlayer(context: Context) {
             currentPosition = currentPosition,
             duration = duration,
             queue = queue,
-            currentIndex = currentIndex
+            currentIndex = currentIndex,
+            shuffleEnabled = shuffleEnabled,
+            originalQueue = originalQueue,
+            currentShuffleStrategy = currentShuffleStrategy
         )
     }
 }

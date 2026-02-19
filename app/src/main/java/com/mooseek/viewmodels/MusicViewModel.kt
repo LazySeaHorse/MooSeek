@@ -111,6 +111,29 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
         mediaController?.seekTo(positionMs)
     }
     
+    fun toggleShuffle() {
+        val intent = Intent(getApplication(), MusicPlaybackService::class.java).apply {
+            action = MusicPlaybackService.ACTION_TOGGLE_SHUFFLE
+        }
+        getApplication<Application>().startService(intent)
+        
+        _playbackState.value = _playbackState.value.copy(
+            shuffleEnabled = !_playbackState.value.shuffleEnabled
+        )
+    }
+    
+    fun setShuffleStrategy(strategyName: String) {
+        val intent = Intent(getApplication(), MusicPlaybackService::class.java).apply {
+            action = MusicPlaybackService.ACTION_SET_SHUFFLE_STRATEGY
+            putExtra(MusicPlaybackService.EXTRA_STRATEGY_NAME, strategyName)
+        }
+        getApplication<Application>().startService(intent)
+        
+        _playbackState.value = _playbackState.value.copy(
+            currentShuffleStrategy = strategyName
+        )
+    }
+    
     fun updateSearchQuery(query: String) {
         _searchQuery.value = query
         filterSongs(query)

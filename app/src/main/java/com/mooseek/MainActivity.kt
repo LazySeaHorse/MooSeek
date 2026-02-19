@@ -103,7 +103,10 @@ fun MusicApp(
                 onSkipNextClick = { viewModel.skipToNext() },
                 onSkipPreviousClick = { viewModel.skipToPrevious() },
                 onSeek = { position -> viewModel.seekTo(position) },
-                onBackClick = { showNowPlaying = false }
+                onBackClick = { showNowPlaying = false },
+                onShuffleClick = { viewModel.toggleShuffle() },
+                onShuffleStrategySelected = { strategy -> viewModel.setShuffleStrategy(strategy) },
+                availableStrategies = listOf("Standard Shuffle", "Miller Shuffle", "Weighted Shuffle")
             )
         } else {
             LibraryScreen(
