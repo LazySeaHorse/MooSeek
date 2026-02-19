@@ -30,7 +30,10 @@ export function clearLyricsState() {
 
 export async function loadLyrics(song) {
     clearInterval(lyricsState.lyricsInterval);
-    document.getElementById('lyrics-container').innerHTML = '<div class="lyrics-loading">Loading lyrics...</div>';
+    const loadingHtml = '<div class="lyrics-loading">Loading lyrics...</div>';
+    document.getElementById('lyrics-container').innerHTML = loadingHtml;
+    const fsLyricsContainer = document.getElementById('fullscreen-lyrics-container');
+    if (fsLyricsContainer) fsLyricsContainer.innerHTML = loadingHtml;
 
     try {
         const duration = Math.floor(song.duration / 1000);
@@ -47,16 +50,16 @@ export async function loadLyrics(song) {
             }
         }
 
-        // Attempt 2: search with album + artist
+        // Attempt 2: search with artist + album using generic q parameter
         if (song.album) {
-            const searchUrl = `https://lrclib.net/api/search?artist_name=${encodeURIComponent(song.artist)}&album_name=${encodeURIComponent(song.album)}`;
+            const searchQuery = `${song.artist} ${song.album}`;
+            const searchUrl = `https://lrclib.net/api/search?q=${encodeURIComponent(searchQuery)}`;
             const searchResponse = await fetch(searchUrl);
 
             if (searchResponse.ok) {
                 const results = await searchResponse.json();
-                const match = results.find(r => r.syncedLyrics || r.plainLyrics);
-                if (match) {
-                    applyLyricsData(match);
+                if (results.length > 0 && (results[0].syncedLyrics || results[0].plainLyrics)) {
+                    applyLyricsData(results[0]);
                     return;
                 }
             }
@@ -89,8 +92,7 @@ function showManualLyricsSearch(song) {
     lyricsState.plainLyricsText = '';
 
     const defaultQuery = song ? `${song.artist} ${song.title}` : '';
-    const container = document.getElementById('lyrics-container');
-    container.innerHTML =
+    const searchHtml =
         '<div class="lyrics-manual-search">' +
         '<div class="lyrics-error">No lyrics found</div>' +
         '<div class="lyrics-search-form">' +
@@ -98,6 +100,11 @@ function showManualLyricsSearch(song) {
         '<button class="lyrics-search-btn" id="lyrics-search-btn">Search</button>' +
         '</div>' +
         '</div>';
+
+    const container = document.getElementById('lyrics-container');
+    container.innerHTML = searchHtml;
+    const fsLyricsContainer = document.getElementById('fullscreen-lyrics-container');
+    if (fsLyricsContainer) fsLyricsContainer.innerHTML = searchHtml;
 
     const searchInput = document.getElementById('lyrics-search-input');
     const searchBtn = document.getElementById('lyrics-search-btn');
@@ -112,7 +119,10 @@ function showManualLyricsSearch(song) {
 export async function searchLyricsManual(query) {
     if (!query.trim()) return;
 
-    document.getElementById('lyrics-container').innerHTML = '<div class="lyrics-loading">Searching...</div>';
+    const loadingHtml = '<div class="lyrics-loading">Searching...</div>';
+    document.getElementById('lyrics-container').innerHTML = loadingHtml;
+    const fsLyricsContainer = document.getElementById('fullscreen-lyrics-container');
+    if (fsLyricsContainer) fsLyricsContainer.innerHTML = loadingHtml;
 
     try {
         const url = `https://lrclib.net/api/search?q=${encodeURIComponent(query.trim())}`;
