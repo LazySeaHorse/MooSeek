@@ -4,7 +4,7 @@
 
 import { updatePlayPauseButton, updateActiveTrack, updateNowPlaying } from './ui.js';
 import { cycleTheme } from './theme.js';
-import { loadLyrics, lyricsState } from './lyrics.js';
+import { clearLyricsState } from './lyrics.js';
 
 export const playerState = {
     currentSong: null,
@@ -29,10 +29,8 @@ export function playSong(song, filteredSongs) {
     // Update UI with new song info
     updateNowPlaying(song);
     
-    // Load lyrics if lyrics mode is active
-    if (lyricsState.lyricsMode !== 'off') {
-        loadLyrics(song);
-    }
+    // Clear lyrics when changing songs to keep server load low
+    clearLyricsState();
     
     // For dummy songs, use a silent data URL so the player doesn't error
     if (song.path.startsWith('dummy')) {
