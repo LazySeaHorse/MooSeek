@@ -19,6 +19,7 @@ var repeatMode = 'off'; // 'off', 'all', 'one'
 var isSeeking = false;
 var lyricsMode = 'off'; // 'off', 'synced', 'plain'
 var fullscreenPlayerOpen = false;
+var currentThemeIndex = 0;
 
 function isMobile() {
     return window.matchMedia('(max-width: 768px)').matches;
@@ -28,6 +29,7 @@ document.addEventListener('DOMContentLoaded', function () {
     // Initialize audio element
     player = document.getElementById('player');
     player.volume = 1;
+    applyTheme(0);
 
     // Progress bar interaction
     var progressBar = document.getElementById('progress-bar');
@@ -348,6 +350,7 @@ function attachTrackClickHandlers() {
 
 function playSong(song) {
     currentSong = song;
+    cycleTheme();
     player.src = '/stream/' + song.path;
     player.load();
     player.play();
@@ -375,6 +378,12 @@ function playSong(song) {
     document.getElementById('lyrics-container').innerHTML = '';
     var fsLyricsContainer = document.getElementById('fullscreen-lyrics-container');
     if (fsLyricsContainer) fsLyricsContainer.innerHTML = '';
+
+    // Remove has-lyrics class to show SVG placeholder
+    var wrapper = document.querySelector('.lyrics-wrapper');
+    var fsWrapper = document.querySelector('.fullscreen-lyrics-wrapper');
+    if (wrapper) wrapper.classList.remove('has-lyrics');
+    if (fsWrapper) fsWrapper.classList.remove('has-lyrics');
 }
 
 function updateNowPlaying(song) {
@@ -607,8 +616,11 @@ function updateActiveTrack(index) {
 function loadLyrics(song) {
     clearInterval(lyricsInterval);
 
-    // Show loading state
-    document.getElementById('lyrics-container').innerHTML = '<div class="lyrics-loading">Loading lyrics...</div>';
+    // Show loading state in both containers
+    var loadingHtml = '<div class="lyrics-loading">Loading lyrics...</div>';
+    document.getElementById('lyrics-container').innerHTML = loadingHtml;
+    var fsLc = document.getElementById('fullscreen-lyrics-container');
+    if (fsLc) fsLc.innerHTML = loadingHtml;
 
     var duration = Math.floor(song.duration / 1000);
 
@@ -688,35 +700,53 @@ function showManualLyricsSearch(song) {
     plainLyricsText = '';
 
     var defaultQuery = song ? song.artist + ' ' + song.title : '';
-    var container = document.getElementById('lyrics-container');
-    container.innerHTML =
+    var searchHtml =
         '<div class="lyrics-manual-search">' +
         '<div class="lyrics-error">No lyrics found</div>' +
         '<div class="lyrics-search-form">' +
-        '<input type="text" class="lyrics-search-input" id="lyrics-search-input" placeholder="Search for lyrics...">' +
-        '<button class="lyrics-search-btn" id="lyrics-search-btn">Search</button>' +
+        '<input type="text" class="lyrics-search-input" placeholder="Search for lyrics...">' +
+        '<button class="lyrics-search-btn">Search</button>' +
         '</div>' +
         '</div>';
 
-    var searchInput = document.getElementById('lyrics-search-input');
-    var searchBtn = document.getElementById('lyrics-search-btn');
-    searchInput.value = defaultQuery;
+    // Add has-lyrics class to hide SVG when showing search
+    var wrapper = document.querySelector('.lyrics-wrapper');
+    var fsWrapper = document.querySelector('.fullscreen-lyrics-wrapper');
+    if (wrapper) wrapper.classList.add('has-lyrics');
+    if (fsWrapper) fsWrapper.classList.add('has-lyrics');
 
-    searchBtn.addEventListener('click', function () {
-        searchLyricsManual(searchInput.value);
-    });
-    searchInput.addEventListener('keydown', function (e) {
-        if (e.key === 'Enter' || e.keyCode === 13) {
-            searchLyricsManual(searchInput.value);
-        }
-    });
+    // Update both containers with scoped queries
+    var containerIds = ['lyrics-container', 'fullscreen-lyrics-container'];
+    for (var c = 0; c < containerIds.length; c++) {
+        var container = document.getElementById(containerIds[c]);
+        if (!container) continue;
+        container.innerHTML = searchHtml;
+
+        var searchInput = container.querySelector('.lyrics-search-input');
+        var searchBtn = container.querySelector('.lyrics-search-btn');
+        searchInput.value = defaultQuery;
+
+        (function (input, btn) {
+            btn.addEventListener('click', function () {
+                searchLyricsManual(input.value);
+            });
+            input.addEventListener('keydown', function (e) {
+                if (e.key === 'Enter' || e.keyCode === 13) {
+                    searchLyricsManual(input.value);
+                }
+            });
+        })(searchInput, searchBtn);
+    }
 }
 
 function searchLyricsManual(query) {
     var trimmed = query.replace(/^\s+|\s+$/g, '');
     if (!trimmed) return;
 
-    document.getElementById('lyrics-container').innerHTML = '<div class="lyrics-loading">Searching...</div>';
+    var searchingHtml = '<div class="lyrics-loading">Searching...</div>';
+    document.getElementById('lyrics-container').innerHTML = searchingHtml;
+    var fsLc = document.getElementById('fullscreen-lyrics-container');
+    if (fsLc) fsLc.innerHTML = searchingHtml;
 
     var url = 'https://lrclib.net/api/search?q=' + encodeURIComponent(trimmed);
 
@@ -769,10 +799,14 @@ function parseSyncedLyrics(lyricsText) {
 function displayLyrics() {
     var container = document.getElementById('lyrics-container');
     var fsContainer = document.getElementById('fullscreen-lyrics-container');
+    var wrapper = document.querySelector('.lyrics-wrapper');
+    var fsWrapper = document.querySelector('.fullscreen-lyrics-wrapper');
 
     if (lyricsMode === 'off') {
         container.innerHTML = '';
         if (fsContainer) fsContainer.innerHTML = '';
+        if (wrapper) wrapper.classList.remove('has-lyrics');
+        if (fsWrapper) fsWrapper.classList.remove('has-lyrics');
         return;
     }
 
@@ -801,6 +835,15 @@ function displayLyrics() {
 
     container.innerHTML = html;
     if (fsContainer) fsContainer.innerHTML = html;
+
+    // Manage has-lyrics class
+    if (html) {
+        if (wrapper) wrapper.classList.add('has-lyrics');
+        if (fsWrapper) fsWrapper.classList.add('has-lyrics');
+    } else {
+        if (wrapper) wrapper.classList.remove('has-lyrics');
+        if (fsWrapper) fsWrapper.classList.remove('has-lyrics');
+    }
 }
 
 function startLyricsSync() {
@@ -808,19 +851,29 @@ function startLyricsSync() {
         var currentTime = player.currentTime;
         var activeLine = findActiveLyricLine(currentTime);
 
-        var allLines = document.querySelectorAll('.lyrics-line');
-        for (var i = 0; i < allLines.length; i++) {
-            allLines[i].classList.remove('active');
-        }
+        // Sync both desktop and fullscreen containers independently
+        var containerIds = ['lyrics-container', 'fullscreen-lyrics-container'];
+        for (var c = 0; c < containerIds.length; c++) {
+            var container = document.getElementById(containerIds[c]);
+            if (!container) continue;
 
-        if (activeLine !== -1) {
-            var activeEl = document.querySelector('.lyrics-line[data-index="' + activeLine + '"]');
-            if (activeEl) {
-                activeEl.classList.add('active');
-                try {
-                    activeEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                } catch (e) {
-                    activeEl.scrollIntoView(false);
+            var allLines = container.querySelectorAll('.lyrics-line');
+            for (var i = 0; i < allLines.length; i++) {
+                allLines[i].classList.remove('active');
+            }
+
+            if (activeLine !== -1) {
+                var activeEl = container.querySelector('.lyrics-line[data-index="' + activeLine + '"]');
+                if (activeEl) {
+                    activeEl.classList.add('active');
+                    // Only scroll if container is visible
+                    if (container.offsetHeight > 0) {
+                        try {
+                            activeEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        } catch (e) {
+                            activeEl.scrollIntoView(false);
+                        }
+                    }
                 }
             }
         }
@@ -979,4 +1032,114 @@ function escapeHtml(text) {
     var div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
+}
+
+// ---- Theme Cycling ----
+var themes = [
+    // 0: Purple
+    {
+        '--md-sys-color-primary': '#6750A4', '--md-sys-color-on-primary': '#FFFFFF',
+        '--md-sys-color-primary-container': '#EADDFF', '--md-sys-color-on-primary-container': '#21005D',
+        '--md-sys-color-secondary': '#625B71', '--md-sys-color-on-secondary': '#FFFFFF',
+        '--md-sys-color-secondary-container': '#E8DEF8', '--md-sys-color-on-secondary-container': '#1D192B',
+        '--md-sys-color-surface': '#FFFBFE', '--md-sys-color-surface-dim': '#DED8E1',
+        '--md-sys-color-surface-bright': '#FFFBFE', '--md-sys-color-surface-container-lowest': '#FFFFFF',
+        '--md-sys-color-surface-container-low': '#F7F2FA', '--md-sys-color-surface-container': '#F3EDF7',
+        '--md-sys-color-surface-container-high': '#ECE6F0', '--md-sys-color-surface-container-highest': '#E6E0E9',
+        '--md-sys-color-surface-variant': '#E7E0EC', '--md-sys-color-on-surface': '#1C1B1F',
+        '--md-sys-color-on-surface-variant': '#49454F', '--md-sys-color-background': '#FFFBFE',
+        '--md-sys-color-on-background': '#1C1B1F', '--md-sys-color-outline': '#79747E',
+        '--md-sys-color-outline-variant': '#CAC4D0'
+    },
+    // 1: Green
+    {
+        '--md-sys-color-primary': '#2D6A4F', '--md-sys-color-on-primary': '#FFFFFF',
+        '--md-sys-color-primary-container': '#B7E4C7', '--md-sys-color-on-primary-container': '#0A3622',
+        '--md-sys-color-secondary': '#52B788', '--md-sys-color-on-secondary': '#FFFFFF',
+        '--md-sys-color-secondary-container': '#D8F3DC', '--md-sys-color-on-secondary-container': '#1B4332',
+        '--md-sys-color-surface': '#F8FFF9', '--md-sys-color-surface-dim': '#D5E8DC',
+        '--md-sys-color-surface-bright': '#F8FFF9', '--md-sys-color-surface-container-lowest': '#FFFFFF',
+        '--md-sys-color-surface-container-low': '#EDF7F0', '--md-sys-color-surface-container': '#E7F3EA',
+        '--md-sys-color-surface-container-high': '#DFEEE4', '--md-sys-color-surface-container-highest': '#D9E9DE',
+        '--md-sys-color-surface-variant': '#DDE9E1', '--md-sys-color-on-surface': '#191C1A',
+        '--md-sys-color-on-surface-variant': '#3F4945', '--md-sys-color-background': '#F8FFF9',
+        '--md-sys-color-on-background': '#191C1A', '--md-sys-color-outline': '#6F7972',
+        '--md-sys-color-outline-variant': '#BFC9C2'
+    },
+    // 2: Blue
+    {
+        '--md-sys-color-primary': '#0077B6', '--md-sys-color-on-primary': '#FFFFFF',
+        '--md-sys-color-primary-container': '#CAF0F8', '--md-sys-color-on-primary-container': '#003D5B',
+        '--md-sys-color-secondary': '#00B4D8', '--md-sys-color-on-secondary': '#FFFFFF',
+        '--md-sys-color-secondary-container': '#ADE8F4', '--md-sys-color-on-secondary-container': '#005F73',
+        '--md-sys-color-surface': '#F8FCFF', '--md-sys-color-surface-dim': '#D3E5ED',
+        '--md-sys-color-surface-bright': '#F8FCFF', '--md-sys-color-surface-container-lowest': '#FFFFFF',
+        '--md-sys-color-surface-container-low': '#EDF6FA', '--md-sys-color-surface-container': '#E7F2F7',
+        '--md-sys-color-surface-container-high': '#DFEDF3', '--md-sys-color-surface-container-highest': '#D9E8EE',
+        '--md-sys-color-surface-variant': '#DDE8ED', '--md-sys-color-on-surface': '#191C1E',
+        '--md-sys-color-on-surface-variant': '#3F484C', '--md-sys-color-background': '#F8FCFF',
+        '--md-sys-color-on-background': '#191C1E', '--md-sys-color-outline': '#6F787D',
+        '--md-sys-color-outline-variant': '#BFC8CD'
+    },
+    // 3: Yellow/Orange
+    {
+        '--md-sys-color-primary': '#F77F00', '--md-sys-color-on-primary': '#FFFFFF',
+        '--md-sys-color-primary-container': '#FFE5B4', '--md-sys-color-on-primary-container': '#5C3000',
+        '--md-sys-color-secondary': '#FCBF49', '--md-sys-color-on-secondary': '#3D2800',
+        '--md-sys-color-secondary-container': '#FFF3D6', '--md-sys-color-on-secondary-container': '#4A3300',
+        '--md-sys-color-surface': '#FFFCF8', '--md-sys-color-surface-dim': '#E8E0D5',
+        '--md-sys-color-surface-bright': '#FFFCF8', '--md-sys-color-surface-container-lowest': '#FFFFFF',
+        '--md-sys-color-surface-container-low': '#FFF7ED', '--md-sys-color-surface-container': '#FFF3E7',
+        '--md-sys-color-surface-container-high': '#FAEEDE', '--md-sys-color-surface-container-highest': '#F4E9D8',
+        '--md-sys-color-surface-variant': '#F0E5D9', '--md-sys-color-on-surface': '#1E1B16',
+        '--md-sys-color-on-surface-variant': '#4D4639', '--md-sys-color-background': '#FFFCF8',
+        '--md-sys-color-on-background': '#1E1B16', '--md-sys-color-outline': '#7E7667',
+        '--md-sys-color-outline-variant': '#D0C4B4'
+    },
+    // 4: Red
+    {
+        '--md-sys-color-primary': '#D62828', '--md-sys-color-on-primary': '#FFFFFF',
+        '--md-sys-color-primary-container': '#FFDAD6', '--md-sys-color-on-primary-container': '#5F0000',
+        '--md-sys-color-secondary': '#F77F00', '--md-sys-color-on-secondary': '#FFFFFF',
+        '--md-sys-color-secondary-container': '#FFE5B4', '--md-sys-color-on-secondary-container': '#5C3000',
+        '--md-sys-color-surface': '#FFFBF9', '--md-sys-color-surface-dim': '#E8D8D5',
+        '--md-sys-color-surface-bright': '#FFFBF9', '--md-sys-color-surface-container-lowest': '#FFFFFF',
+        '--md-sys-color-surface-container-low': '#FFF2ED', '--md-sys-color-surface-container': '#FFEDE7',
+        '--md-sys-color-surface-container-high': '#FAE8E1', '--md-sys-color-surface-container-highest': '#F4E2DB',
+        '--md-sys-color-surface-variant': '#F0DDD6', '--md-sys-color-on-surface': '#1E1B19',
+        '--md-sys-color-on-surface-variant': '#4D4340', '--md-sys-color-background': '#FFFBF9',
+        '--md-sys-color-on-background': '#1E1B19', '--md-sys-color-outline': '#7E736F',
+        '--md-sys-color-outline-variant': '#D0C3BF'
+    },
+    // 5: Pink
+    {
+        '--md-sys-color-primary': '#D946A6', '--md-sys-color-on-primary': '#FFFFFF',
+        '--md-sys-color-primary-container': '#FFD8F0', '--md-sys-color-on-primary-container': '#5C0042',
+        '--md-sys-color-secondary': '#EC4899', '--md-sys-color-on-secondary': '#FFFFFF',
+        '--md-sys-color-secondary-container': '#FFE5F3', '--md-sys-color-on-secondary-container': '#5F0037',
+        '--md-sys-color-surface': '#FFFBFD', '--md-sys-color-surface-dim': '#E8D8E3',
+        '--md-sys-color-surface-bright': '#FFFBFD', '--md-sys-color-surface-container-lowest': '#FFFFFF',
+        '--md-sys-color-surface-container-low': '#FFF2F8', '--md-sys-color-surface-container': '#FFEDF5',
+        '--md-sys-color-surface-container-high': '#FAE8EF', '--md-sys-color-surface-container-highest': '#F4E2E9',
+        '--md-sys-color-surface-variant': '#F0DDEA', '--md-sys-color-on-surface': '#1E1B1D',
+        '--md-sys-color-on-surface-variant': '#4D434A', '--md-sys-color-background': '#FFFBFD',
+        '--md-sys-color-on-background': '#1E1B1D', '--md-sys-color-outline': '#7E7379',
+        '--md-sys-color-outline-variant': '#D0C3CA'
+    }
+];
+
+function applyTheme(index) {
+    if (index < 0 || index >= themes.length) index = 0;
+    var theme = themes[index];
+    var root = document.documentElement;
+    var keys = Object.keys(theme);
+    for (var i = 0; i < keys.length; i++) {
+        root.style.setProperty(keys[i], theme[keys[i]]);
+    }
+    currentThemeIndex = index;
+}
+
+function cycleTheme() {
+    currentThemeIndex = (currentThemeIndex + 1) % themes.length;
+    applyTheme(currentThemeIndex);
 }

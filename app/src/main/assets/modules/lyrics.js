@@ -26,7 +26,7 @@ export function clearLyricsState() {
     document.getElementById('lyrics-container').innerHTML = '';
     const fsLyricsContainer = document.getElementById('fullscreen-lyrics-container');
     if (fsLyricsContainer) fsLyricsContainer.innerHTML = '';
-    
+
     // Remove has-lyrics class to show SVG
     const wrapper = document.querySelector('.lyrics-wrapper');
     const fsWrapper = document.querySelector('.fullscreen-lyrics-wrapper');
@@ -102,15 +102,10 @@ function showManualLyricsSearch(song) {
         '<div class="lyrics-manual-search">' +
         '<div class="lyrics-error">No lyrics found</div>' +
         '<div class="lyrics-search-form">' +
-        '<input type="text" class="lyrics-search-input" id="lyrics-search-input" placeholder="Search for lyrics...">' +
-        '<button class="lyrics-search-btn" id="lyrics-search-btn">Search</button>' +
+        '<input type="text" class="lyrics-search-input" placeholder="Search for lyrics...">' +
+        '<button class="lyrics-search-btn">Search</button>' +
         '</div>' +
         '</div>';
-
-    const container = document.getElementById('lyrics-container');
-    container.innerHTML = searchHtml;
-    const fsLyricsContainer = document.getElementById('fullscreen-lyrics-container');
-    if (fsLyricsContainer) fsLyricsContainer.innerHTML = searchHtml;
 
     // Add has-lyrics class to hide SVG when showing search
     const wrapper = document.querySelector('.lyrics-wrapper');
@@ -118,13 +113,20 @@ function showManualLyricsSearch(song) {
     if (wrapper) wrapper.classList.add('has-lyrics');
     if (fsWrapper) fsWrapper.classList.add('has-lyrics');
 
-    const searchInput = document.getElementById('lyrics-search-input');
-    const searchBtn = document.getElementById('lyrics-search-btn');
-    searchInput.value = defaultQuery;
+    // Update both containers and wire up event listeners per container
+    ['lyrics-container', 'fullscreen-lyrics-container'].forEach(id => {
+        const container = document.getElementById(id);
+        if (!container) return;
+        container.innerHTML = searchHtml;
 
-    searchBtn.addEventListener('click', () => searchLyricsManual(searchInput.value));
-    searchInput.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') searchLyricsManual(searchInput.value);
+        const searchInput = container.querySelector('.lyrics-search-input');
+        const searchBtn = container.querySelector('.lyrics-search-btn');
+        searchInput.value = defaultQuery;
+
+        searchBtn.addEventListener('click', () => searchLyricsManual(searchInput.value));
+        searchInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') searchLyricsManual(searchInput.value);
+        });
     });
 }
 
@@ -214,7 +216,7 @@ function displayLyrics() {
 
     container.innerHTML = html;
     if (fsContainer) fsContainer.innerHTML = html;
-    
+
     // Add has-lyrics class when displaying lyrics
     if (html) {
         if (wrapper) wrapper.classList.add('has-lyrics');
@@ -230,15 +232,24 @@ function startLyricsSync() {
         const currentTime = playerState.player.currentTime;
         const activeLine = findActiveLyricLine(currentTime);
 
-        document.querySelectorAll('.lyrics-line').forEach(el => el.classList.remove('active'));
+        // Sync both desktop and fullscreen containers independently
+        ['lyrics-container', 'fullscreen-lyrics-container'].forEach(id => {
+            const container = document.getElementById(id);
+            if (!container) return;
 
-        if (activeLine !== -1) {
-            const activeEl = document.querySelector(`.lyrics-line[data-index="${activeLine}"]`);
-            if (activeEl) {
-                activeEl.classList.add('active');
-                activeEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            container.querySelectorAll('.lyrics-line').forEach(el => el.classList.remove('active'));
+
+            if (activeLine !== -1) {
+                const activeEl = container.querySelector(`.lyrics-line[data-index="${activeLine}"]`);
+                if (activeEl) {
+                    activeEl.classList.add('active');
+                    // Only scroll if container is visible
+                    if (container.offsetHeight > 0) {
+                        activeEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }
+                }
             }
-        }
+        });
     }, 100);
 }
 
