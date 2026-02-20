@@ -2,8 +2,9 @@
  * Player module - handles playback control, shuffle, and repeat
  */
 
-import { updatePlayPauseButton, updateActiveTrack } from './ui.js';
+import { updatePlayPauseButton, updateActiveTrack, updateNowPlaying } from './ui.js';
 import { cycleTheme } from './theme.js';
+import { loadLyrics, lyricsState } from './lyrics.js';
 
 export const playerState = {
     currentSong: null,
@@ -24,6 +25,14 @@ export function playSong(song, filteredSongs) {
     
     // Cycle to next theme when a new song plays
     cycleTheme();
+    
+    // Update UI with new song info
+    updateNowPlaying(song);
+    
+    // Load lyrics if lyrics mode is active
+    if (lyricsState.lyricsMode !== 'off') {
+        loadLyrics(song);
+    }
     
     // For dummy songs, use a silent data URL so the player doesn't error
     if (song.path.startsWith('dummy')) {

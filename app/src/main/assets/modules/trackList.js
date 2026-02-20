@@ -4,7 +4,7 @@
 
 import { formatDuration, escapeHtml } from './utils.js';
 import { playSong } from './player.js';
-import { updateNowPlaying, updateActiveTrack } from './ui.js';
+import { updateActiveTrack } from './ui.js';
 
 export const trackListState = {
     songs: [],
@@ -70,7 +70,6 @@ export function attachTrackClickHandlers() {
             const index = parseInt(this.dataset.index);
             const song = trackListState.filteredSongs[index];
             playSong(song, trackListState.filteredSongs);
-            updateNowPlaying(song);
 
             // Update active state
             document.querySelectorAll('.track-item').forEach(el => el.classList.remove('active'));
