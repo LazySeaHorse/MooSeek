@@ -29,10 +29,17 @@ class MusicPlaybackService : MediaSessionService() {
         const val EXTRA_SONGS = "extra_songs"
         const val EXTRA_START_INDEX = "extra_start_index"
         const val EXTRA_STRATEGY_NAME = "extra_strategy_name"
+        
+        // Static reference to access player state (not ideal but works with MediaSessionService)
+        private var instance: MusicPlaybackService? = null
+        
+        fun getPlaybackState(): PlaybackState? = instance?.musicPlayer?.playbackState?.value
     }
     
     override fun onCreate() {
         super.onCreate()
+        
+        instance = this
         
         createNotificationChannel()
         musicPlayer = MusicPlayer(this)
@@ -84,6 +91,7 @@ class MusicPlaybackService : MediaSessionService() {
             mediaSession = null
         }
         musicPlayer.release()
+        instance = null
         super.onDestroy()
     }
     
